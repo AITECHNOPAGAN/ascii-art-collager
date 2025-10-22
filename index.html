@@ -33,7 +33,11 @@
                     <div class="radio-group">
                         <label>
                             <input type="radio" name="layerContentType" value="image" checked>
-                            Image
+                            ASCII Image
+                        </label>
+                        <label>
+                            <input type="radio" name="layerContentType" value="hiresImage">
+                            Hi-Res Image
                         </label>
                         <label>
                             <input type="radio" name="layerContentType" value="text">
@@ -54,7 +58,7 @@
 
                 <div class="control-group">
                     <label for="layerColorPicker">Text Color:</label>
-                    <input type="color" id="layerColorPicker" value="#808080">
+                    <input type="color" id="layerColorPicker" value="#000000">
                 </div>
 
                 <div class="control-group">
@@ -109,6 +113,16 @@
 
             <!-- Export -->
             <div class="section-header">Export</div>
+
+            <div class="control-group">
+                <label for="resolutionSelect">Resolution:</label>
+                <select id="resolutionSelect">
+                    <option value="responsive">Responsive (currently used)</option>
+                    <option value="square">Square</option>
+                    <option value="landscape">Landscape</option>
+                    <option value="portrait">Portrait</option>
+                </select>
+            </div>
 
             <div class="control-group">
                 <button id="exportBtn" disabled>Export HTML</button>

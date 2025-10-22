@@ -24,6 +24,7 @@ const parallaxValue = document.getElementById('parallaxValue');
 // Export button
 const exportBtn = document.getElementById('exportBtn');
 const saveLayerBtn = document.getElementById('saveLayerBtn');
+const resolutionSelect = document.getElementById('resolutionSelect');
 
 // Layer system state
 let layers = [];
@@ -64,8 +65,12 @@ parallaxSlider.addEventListener('input', handleParallaxChange);
 exportBtn.addEventListener('click', exportHTML);
 saveLayerBtn.addEventListener('click', saveCurrentLayer);
 
+// Resolution change listener
+resolutionSelect.addEventListener('change', handleResolutionChange);
+
 // Initialize
 updateUI();
+applyResolutionToCanvas();
 
 function createNewLayer() {
     // Check for unsaved changes before creating new layer
@@ -79,13 +84,14 @@ function createNewLayer() {
         id: nextLayerId++,
         name: `Layer ${nextLayerId - 1}`,
         asciiArt: '',
-        contentType: 'image', // 'image' or 'text'
+        imageData: null, // For hiresImage layers: store the base64 image data
+        contentType: 'image', // 'image' (ASCII conversion), 'hiresImage', or 'text'
         position: 'center',
         offsetX: 0,
         offsetY: 0,
         scale: 1,
         fontSize: 12,
-        color: '#ffffff',
+        color: '#000000',
         zIndex: layers.length + 2,
         visibility: true,
         parallaxStrength: 0.3 + (layers.length * 0.1)
@@ -110,7 +116,19 @@ function handleLayerImageUpload(event) {
     reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
-            convertImageToAscii(img);
+            if (!editingState) return;
+            
+            // Check the current content type
+            if (editingState.contentType === 'hiresImage') {
+                // Store the image data URL directly for hi-res display
+                editingState.imageData = e.target.result;
+                hasUnsavedChanges = true;
+                renderLayers();
+                updateUI();
+            } else {
+                // Convert to ASCII art for 'image' type
+                convertImageToAscii(img);
+            }
         };
         img.onerror = () => {
             alert('Failed to load image');
@@ -126,7 +144,7 @@ function convertImageToAscii(img) {
     if (!editingState) return;
 
     const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     const width = 100;
     const height = Math.floor((img.height / img.width) * width * 0.55);
@@ -134,6 +152,11 @@ function convertImageToAscii(img) {
     canvas.width = width;
     canvas.height = height;
 
+    // Fill canvas with white background to ensure proper color rendering
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Draw image with proper alpha handling
     ctx.drawImage(img, 0, 0, width, height);
 
     const imageData = ctx.getImageData(0, 0, width, height);
@@ -144,16 +167,28 @@ function convertImageToAscii(img) {
         const r = data[i];
         const g = data[i + 1];
         const b = data[i + 2];
+        const a = data[i + 3];
 
-        const isWhite = r > 240 && g > 240 && b > 240;
+        // Normalize alpha to 0-1 range
+        const alpha = a / 255;
 
-        if (isWhite) {
+        // Only treat actually transparent pixels as invisible
+        // Don't guess based on color - respect the source image's alpha channel
+        const isTransparent = alpha < 0.1;
+
+        if (isTransparent) {
             asciiArt += `<span style="opacity: 0;"> </span>`;
         } else {
-            const brightness = (r + g + b) / 3;
-            const blockIndex = Math.floor((brightness / 255) * (BLOCKS.length - 1));
+            // Use perceptual brightness calculation (weighted for human vision)
+            // This gives more accurate results than simple average
+            const brightness = (0.299 * r + 0.587 * g + 0.114 * b);
+            
+            // Invert the block index mapping so darker colors get darker blocks
+            const blockIndex = BLOCKS.length - 1 - Math.floor((brightness / 255) * (BLOCKS.length - 1));
             const block = BLOCKS[blockIndex];
-            const color = `rgb(${r}, ${g}, ${b})`;
+            
+            // Use rgba with actual alpha value for proper transparency handling
+            const color = `rgba(${r}, ${g}, ${b}, ${alpha})`;
             asciiArt += `<span style="color: ${color};">${block}</span>`;
         }
 
@@ -182,13 +217,18 @@ function handleLayerTextInput(e) {
 }
 
 function handleLayerContentTypeChange(e) {
+    if (!editingState) return;
+    
     const mode = e.target.value;
-    if (mode === 'image') {
-        document.getElementById('layerImageSection').style.display = 'block';
-        document.getElementById('layerTextSection').style.display = 'none';
-    } else {
+    editingState.contentType = mode;
+    
+    if (mode === 'text') {
         document.getElementById('layerImageSection').style.display = 'none';
         document.getElementById('layerTextSection').style.display = 'block';
+    } else {
+        // Both 'image' (ASCII conversion) and 'hiresImage' use the image upload
+        document.getElementById('layerImageSection').style.display = 'block';
+        document.getElementById('layerTextSection').style.display = 'none';
     }
 }
 
@@ -262,7 +302,7 @@ function handleParallaxChange(e) {
 
 function renderLayers() {
     // Remove all existing layer elements
-    const existingLayers = canvasContainer.querySelectorAll('.ascii-layer');
+    const existingLayers = canvasContainer.querySelectorAll('.ascii-layer, .image-layer');
     existingLayers.forEach(el => el.remove());
 
     // Render each visible layer
@@ -270,25 +310,51 @@ function renderLayers() {
         // Use editingState for active layer, saved layer for others
         const layerData = (layer.id === activeLayerId && editingState) ? editingState : layer;
         
-        if (!layerData.visibility || !layerData.asciiArt) return;
+        if (!layerData.visibility) return;
+        
+        // Skip if no content
+        if (layerData.contentType === 'hiresImage' && !layerData.imageData) return;
+        if ((layerData.contentType === 'image' || layerData.contentType === 'text') && !layerData.asciiArt) return;
 
-        const layerDiv = document.createElement('div');
-        layerDiv.className = 'ascii-layer';
-        layerDiv.id = `layer-${layer.id}`;
-        
-        // For text content, wrap in a span with color
-        if (layerData.contentType === 'text') {
-            layerDiv.innerHTML = `<span style="color: ${layerData.color};">${layerData.asciiArt}</span>`;
+        if (layerData.contentType === 'hiresImage') {
+            // Render as hi-res image
+            const layerDiv = document.createElement('div');
+            layerDiv.className = 'image-layer';
+            layerDiv.id = `layer-${layer.id}`;
+            
+            const img = document.createElement('img');
+            img.src = layerData.imageData;
+            img.style.maxWidth = '100%';
+            img.style.maxHeight = '100%';
+            img.style.display = 'block';
+            
+            layerDiv.appendChild(img);
+            
+            // Apply positioning class
+            layerDiv.classList.add(`position-${layerData.position}`);
+            layerDiv.style.zIndex = layerData.zIndex;
+            
+            canvasContainer.appendChild(layerDiv);
         } else {
-            layerDiv.innerHTML = layerData.asciiArt;
+            // Render as ASCII (either converted image or text)
+            const layerDiv = document.createElement('div');
+            layerDiv.className = 'ascii-layer';
+            layerDiv.id = `layer-${layer.id}`;
+            
+            // For text content, wrap in a span with color
+            if (layerData.contentType === 'text') {
+                layerDiv.innerHTML = `<span style="color: ${layerData.color};">${layerData.asciiArt}</span>`;
+            } else {
+                layerDiv.innerHTML = layerData.asciiArt;
+            }
+            
+            // Apply positioning class
+            layerDiv.classList.add(`position-${layerData.position}`);
+            layerDiv.style.fontSize = layerData.fontSize + 'px';
+            layerDiv.style.zIndex = layerData.zIndex;
+            
+            canvasContainer.appendChild(layerDiv);
         }
-        
-        // Apply positioning class
-        layerDiv.classList.add(`position-${layerData.position}`);
-        layerDiv.style.fontSize = layerData.fontSize + 'px';
-        layerDiv.style.zIndex = layerData.zIndex;
-        
-        canvasContainer.appendChild(layerDiv);
     });
 
     updateLayerTransforms();
@@ -360,9 +426,18 @@ function updateUI() {
             
             // Show editingState preview for active layer with unsaved changes, otherwise saved state
             const displayData = (layer.id === activeLayerId && editingState) ? editingState : layer;
-            // Strip HTML tags from preview and show first 30 chars
-            const asciiText = displayData.asciiArt ? displayData.asciiArt.replace(/<[^>]*>/g, '') : '';
-            const preview = asciiText ? asciiText.substring(0, 30).replace(/\n/g, ' ') + '...' : '(empty)';
+            
+            // Create preview based on content type
+            let preview;
+            if (displayData.contentType === 'hiresImage') {
+                preview = displayData.imageData ? '🖼️ Hi-Res Image' : '(no image)';
+            } else if (displayData.contentType === 'image') {
+                const asciiText = displayData.asciiArt ? displayData.asciiArt.replace(/<[^>]*>/g, '') : '';
+                preview = asciiText ? '🎨 ' + asciiText.substring(0, 25).replace(/\n/g, ' ') + '...' : '(no ASCII art)';
+            } else {
+                const asciiText = displayData.asciiArt ? displayData.asciiArt.replace(/<[^>]*>/g, '') : '';
+                preview = asciiText ? asciiText.substring(0, 30).replace(/\n/g, ' ') + '...' : '(empty)';
+            }
             const unsavedIndicator = (layer.id === activeLayerId && hasUnsavedChanges) ? ' *' : '';
             
             layerItem.innerHTML = `
@@ -440,13 +515,14 @@ function updateUI() {
         const contentTypeRadio = document.querySelector(`input[name="layerContentType"][value="${editingState.contentType}"]`);
         if (contentTypeRadio) contentTypeRadio.checked = true;
         
-        if (editingState.contentType === 'image') {
-            document.getElementById('layerImageSection').style.display = 'block';
-            document.getElementById('layerTextSection').style.display = 'none';
-        } else {
+        if (editingState.contentType === 'text') {
             document.getElementById('layerImageSection').style.display = 'none';
             document.getElementById('layerTextSection').style.display = 'block';
             layerTextarea.value = editingState.asciiArt;
+        } else {
+            // Both 'image' (ASCII conversion) and 'hiresImage' use the image upload
+            document.getElementById('layerImageSection').style.display = 'block';
+            document.getElementById('layerTextSection').style.display = 'none';
         }
         
         // Update other controls - use editingState
@@ -465,7 +541,7 @@ function updateUI() {
     }
 
     // Enable/disable export button
-    const hasLayers = layers.length > 0 && layers.some(l => l.asciiArt);
+    const hasLayers = layers.length > 0 && layers.some(l => l.asciiArt || l.imageData);
     exportBtn.disabled = !hasLayers;
 }
 
@@ -477,6 +553,7 @@ function saveCurrentLayer() {
     
     // Copy editingState to the layer
     layer.asciiArt = editingState.asciiArt;
+    layer.imageData = editingState.imageData;
     layer.contentType = editingState.contentType;
     layer.position = editingState.position;
     layer.offsetX = editingState.offsetX;
@@ -591,6 +668,55 @@ function deleteLayer(layerId) {
     updateUI();
 }
 
+// Resolution handling
+function handleResolutionChange() {
+    applyResolutionToCanvas();
+}
+
+function applyResolutionToCanvas() {
+    const resolution = resolutionSelect.value;
+    const container = canvasContainer;
+    
+    // Reset all styles first
+    container.style.removeProperty('max-width');
+    container.style.removeProperty('max-height');
+    container.style.removeProperty('width');
+    container.style.removeProperty('height');
+    container.style.removeProperty('border');
+    container.style.removeProperty('margin');
+    
+    switch(resolution) {
+        case 'square':
+            container.style.maxWidth = '800px';
+            container.style.maxHeight = '800px';
+            container.style.width = '100vmin';
+            container.style.height = '100vmin';
+            container.style.border = '2px solid #000000';
+            container.style.margin = 'auto';
+            break;
+        case 'landscape':
+            container.style.maxWidth = '1200px';
+            container.style.maxHeight = '675px';
+            container.style.width = 'min(90vw, 1200px)';
+            container.style.height = 'calc(min(90vw, 1200px) * 9 / 16)';
+            container.style.border = '2px solid #000000';
+            container.style.margin = 'auto';
+            break;
+        case 'portrait':
+            container.style.maxWidth = '675px';
+            container.style.maxHeight = '1200px';
+            container.style.width = 'calc(min(90vh, 1200px) * 9 / 16)';
+            container.style.height = 'min(90vh, 1200px)';
+            container.style.border = '2px solid #000000';
+            container.style.margin = 'auto';
+            break;
+        case 'responsive':
+        default:
+            // Default styles already set in CSS, no changes needed
+            break;
+    }
+}
+
 // Parallax handling
 function handleParallaxToggle(e) {
     parallaxEnabled = e.target.checked;
@@ -628,24 +754,90 @@ function exportHTML() {
     if (layers.length === 0) return;
 
     // Filter visible layers with content
-    const visibleLayers = layers.filter(l => l.visibility && l.asciiArt);
+    const visibleLayers = layers.filter(l => l.visibility && (l.asciiArt || l.imageData));
     if (visibleLayers.length === 0) return;
+
+    // Get selected resolution
+    const resolution = resolutionSelect.value;
+    
+    // Define resolution dimensions and styles
+    let containerStyles = '';
+    let bodyStyles = '';
+    
+    switch(resolution) {
+        case 'square':
+            containerStyles = `
+            max-width: 800px;
+            max-height: 800px;
+            width: 100vmin;
+            height: 100vmin;
+            border: 1px solid #000000;`;
+            bodyStyles = `
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f0f0;`;
+            break;
+        case 'landscape':
+            containerStyles = `
+            max-width: 1200px;
+            max-height: 675px;
+            width: 90vw;
+            height: calc(90vw * 9 / 16);
+            border: 2px solid #000000;`;
+            bodyStyles = `
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f0f0;`;
+            break;
+        case 'portrait':
+            containerStyles = `
+            max-width: 675px;
+            max-height: 1200px;
+            width: calc(90vh * 9 / 16);
+            height: 90vh;
+            border: 2px solid #000000;`;
+            bodyStyles = `
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f0f0;`;
+            break;
+        case 'responsive':
+        default:
+            containerStyles = `
+            width: 100%;
+            height: 100%;`;
+            bodyStyles = `
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;`;
+            break;
+    }
 
     // Generate layers HTML
     let layersHTML = '';
     visibleLayers.forEach(layer => {
         const positionClass = `position-${layer.position}`;
-        let content = '';
         
-        if (layer.contentType === 'text') {
-            content = `<span style="color: ${layer.color};">${layer.asciiArt}</span>`;
-        } else {
-            content = layer.asciiArt;
-        }
-        
-        layersHTML += `        <div class="ascii-layer ${positionClass}" data-layer-id="${layer.id}" data-parallax="${layer.parallaxStrength}" data-offset-x="${layer.offsetX}" data-offset-y="${layer.offsetY}" data-scale="${layer.scale}" style="z-index: ${layer.zIndex}; font-size: ${layer.fontSize}px;">
+        if (layer.contentType === 'hiresImage' && layer.imageData) {
+            // Render hi-res image layer
+            layersHTML += `        <div class="image-layer ${positionClass}" data-layer-id="${layer.id}" data-parallax="${layer.parallaxStrength}" data-offset-x="${layer.offsetX}" data-offset-y="${layer.offsetY}" data-scale="${layer.scale}" style="z-index: ${layer.zIndex};">
+            <img src="${layer.imageData}" style="max-width: 100%; max-height: 100%; display: block;">
+        </div>\n`;
+        } else if (layer.contentType === 'text' && layer.asciiArt) {
+            // Render ASCII text layer
+            let content = `<span style="color: ${layer.color};">${layer.asciiArt}</span>`;
+            layersHTML += `        <div class="ascii-layer ${positionClass}" data-layer-id="${layer.id}" data-parallax="${layer.parallaxStrength}" data-offset-x="${layer.offsetX}" data-offset-y="${layer.offsetY}" data-scale="${layer.scale}" style="z-index: ${layer.zIndex}; font-size: ${layer.fontSize}px;">
 ${content}
         </div>\n`;
+        } else if (layer.contentType === 'image' && layer.asciiArt) {
+            // Render ASCII-converted image layer
+            layersHTML += `        <div class="ascii-layer ${positionClass}" data-layer-id="${layer.id}" data-parallax="${layer.parallaxStrength}" data-offset-x="${layer.offsetX}" data-offset-y="${layer.offsetY}" data-scale="${layer.scale}" style="z-index: ${layer.zIndex}; font-size: ${layer.fontSize}px;">
+${layer.asciiArt}
+        </div>\n`;
+        }
     });
 
     // Generate the complete HTML
@@ -664,16 +856,13 @@ ${content}
         
         body {
             background-color: #ffffff;
-            font-family: 'Courier New', monospace;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
+            font-family: 'Courier New', monospace;${bodyStyles}
         }
         
         .canvas-container {
             position: relative;
-            width: 100%;
-            height: 100%;
+            background-color: #ffffff;
+            overflow: hidden;${containerStyles}
         }
         
         .ascii-layer {
@@ -684,27 +873,46 @@ ${content}
             transition: transform 0.05s ease-out;
         }
         
-        .ascii-layer.position-top-left {
+        .image-layer {
+            position: absolute;
+            transition: transform 0.05s ease-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .image-layer img {
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
+        }
+        
+        .ascii-layer.position-top-left,
+        .image-layer.position-top-left {
             top: 0;
             left: 0;
         }
         
-        .ascii-layer.position-top-right {
+        .ascii-layer.position-top-right,
+        .image-layer.position-top-right {
             top: 0;
             right: 0;
         }
         
-        .ascii-layer.position-bottom-left {
+        .ascii-layer.position-bottom-left,
+        .image-layer.position-bottom-left {
             bottom: 0;
             left: 0;
         }
         
-        .ascii-layer.position-bottom-right {
+        .ascii-layer.position-bottom-right,
+        .image-layer.position-bottom-right {
             bottom: 0;
             right: 0;
         }
         
-        .ascii-layer.position-center {
+        .ascii-layer.position-center,
+        .image-layer.position-center {
             top: 50%;
             left: 50%;
         }
@@ -717,12 +925,13 @@ ${layersHTML}
 
     <script>
         // Parallax state
+        const parallaxEnabled = ${parallaxEnabled};
         let mouseX = 0.5;
         let mouseY = 0.5;
         let animationFrameId = null;
 
         // Get all layers and their properties
-        const layers = Array.from(document.querySelectorAll('.ascii-layer')).map(layerDiv => ({
+        const layers = Array.from(document.querySelectorAll('.ascii-layer, .image-layer')).map(layerDiv => ({
             element: layerDiv,
             parallaxStrength: parseFloat(layerDiv.dataset.parallax),
             offsetX: parseInt(layerDiv.dataset.offsetX),
@@ -732,12 +941,16 @@ ${layersHTML}
         }));
 
         // Mouse movement handler
-        document.addEventListener('mousemove', (e) => {
-            mouseX = e.clientX / window.innerWidth;
-            mouseY = e.clientY / window.innerHeight;
-        });
+        if (parallaxEnabled) {
+            document.addEventListener('mousemove', (e) => {
+                const container = document.querySelector('.canvas-container');
+                const rect = container.getBoundingClientRect();
+                mouseX = (e.clientX - rect.left) / rect.width;
+                mouseY = (e.clientY - rect.top) / rect.height;
+            });
+        }
 
-        // Update layer transforms with parallax
+        // Update layer transforms with or without parallax
         function updateLayerTransforms() {
             layers.forEach(layer => {
                 const { element, parallaxStrength, offsetX, offsetY, scale, position } = layer;
@@ -764,9 +977,14 @@ ${layersHTML}
                 
                 element.style.transformOrigin = transformOrigin;
                 
-                // Apply parallax offset
-                const translateX = offsetX + (mouseX - 0.5) * parallaxStrength * 100;
-                const translateY = offsetY + (mouseY - 0.5) * parallaxStrength * 100;
+                // Apply parallax offset only if parallax is enabled
+                let translateX = offsetX;
+                let translateY = offsetY;
+                
+                if (parallaxEnabled) {
+                    translateX += (mouseX - 0.5) * parallaxStrength * 100;
+                    translateY += (mouseY - 0.5) * parallaxStrength * 100;
+                }
                 
                 // Apply transform based on position
                 if (position === 'center') {
@@ -783,8 +1001,12 @@ ${layersHTML}
             animationFrameId = requestAnimationFrame(animate);
         }
 
-        // Start animation on page load
-        animate();
+        // Start animation only if parallax is enabled, otherwise set transforms once
+        if (parallaxEnabled) {
+            animate();
+        } else {
+            updateLayerTransforms();
+        }
     </script>
 </body>
 </html>`;
