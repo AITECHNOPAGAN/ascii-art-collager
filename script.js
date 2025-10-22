@@ -25,11 +25,14 @@ const parallaxValue = document.getElementById('parallaxValue');
 const downloadBtn = document.getElementById('downloadBtn');
 const downloadAllBtn = document.getElementById('downloadAllBtn');
 const downloadMergedBtn = document.getElementById('downloadMergedBtn');
+const saveLayerBtn = document.getElementById('saveLayerBtn');
 
 // Layer system state
 let layers = [];
 let activeLayerId = null;
 let nextLayerId = 1;
+let editingState = null; // Current layer being edited (uncommitted changes)
+let hasUnsavedChanges = false;
 
 // Parallax state
 let parallaxEnabled = false;
@@ -63,11 +66,19 @@ parallaxSlider.addEventListener('input', handleParallaxChange);
 downloadBtn.addEventListener('click', downloadActiveLayerAsHTML);
 downloadAllBtn.addEventListener('click', downloadAllLayersAsHTML);
 downloadMergedBtn.addEventListener('click', downloadMergedAsHTML);
+saveLayerBtn.addEventListener('click', saveCurrentLayer);
 
 // Initialize
 updateUI();
 
 function createNewLayer() {
+    // Check for unsaved changes before creating new layer
+    if (hasUnsavedChanges) {
+        if (!promptSaveChanges()) {
+            return; // User cancelled
+        }
+    }
+
     const layer = {
         id: nextLayerId++,
         name: `Layer ${nextLayerId - 1}`,
@@ -86,6 +97,10 @@ function createNewLayer() {
 
     layers.push(layer);
     activeLayerId = layer.id;
+    
+    // Initialize editing state for new layer
+    editingState = { ...layer };
+    hasUnsavedChanges = false;
     
     updateUI();
     renderLayers();
@@ -112,8 +127,7 @@ function handleLayerImageUpload(event) {
 }
 
 function convertImageToAscii(img) {
-    const activeLayer = layers.find(l => l.id === activeLayerId);
-    if (!activeLayer) return;
+    if (!editingState) return;
 
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -152,21 +166,23 @@ function convertImageToAscii(img) {
         }
     }
 
-    activeLayer.asciiArt = asciiArt;
-    activeLayer.contentType = 'image';
+    editingState.asciiArt = asciiArt;
+    editingState.contentType = 'image';
+    hasUnsavedChanges = true;
     
     renderLayers();
     updateUI();
 }
 
 function handleLayerTextInput(e) {
-    const activeLayer = layers.find(l => l.id === activeLayerId);
-    if (!activeLayer) return;
+    if (!editingState) return;
 
-    activeLayer.asciiArt = e.target.value;
-    activeLayer.contentType = 'text';
+    editingState.asciiArt = e.target.value;
+    editingState.contentType = 'text';
+    hasUnsavedChanges = true;
     
     renderLayers();
+    updateUI();
 }
 
 function handleLayerContentTypeChange(e) {
@@ -181,64 +197,71 @@ function handleLayerContentTypeChange(e) {
 }
 
 function handleLayerColorChange(e) {
-    const activeLayer = layers.find(l => l.id === activeLayerId);
-    if (!activeLayer) return;
+    if (!editingState) return;
 
-    activeLayer.color = e.target.value;
+    editingState.color = e.target.value;
+    hasUnsavedChanges = true;
     renderLayers();
+    updateUI();
 }
 
 function handleLayerFontSizeChange(e) {
-    const activeLayer = layers.find(l => l.id === activeLayerId);
-    if (!activeLayer) return;
+    if (!editingState) return;
 
-    activeLayer.fontSize = parseInt(e.target.value);
-    layerFontSizeValue.textContent = activeLayer.fontSize;
+    editingState.fontSize = parseInt(e.target.value);
+    layerFontSizeValue.textContent = editingState.fontSize;
+    hasUnsavedChanges = true;
     renderLayers();
+    updateUI();
 }
 
 function handlePositionChange(e) {
-    const activeLayer = layers.find(l => l.id === activeLayerId);
-    if (!activeLayer) return;
+    if (!editingState) return;
 
-    activeLayer.position = e.target.value;
+    editingState.position = e.target.value;
+    hasUnsavedChanges = true;
     renderLayers();
+    updateUI();
 }
 
 function handleOffsetXChange(e) {
-    const activeLayer = layers.find(l => l.id === activeLayerId);
-    if (!activeLayer) return;
+    if (!editingState) return;
 
-    activeLayer.offsetX = parseInt(e.target.value);
-    offsetXValue.textContent = activeLayer.offsetX;
+    editingState.offsetX = parseInt(e.target.value);
+    offsetXValue.textContent = editingState.offsetX;
+    hasUnsavedChanges = true;
     updateLayerTransforms();
+    updateUI();
 }
 
 function handleOffsetYChange(e) {
-    const activeLayer = layers.find(l => l.id === activeLayerId);
-    if (!activeLayer) return;
+    if (!editingState) return;
 
-    activeLayer.offsetY = parseInt(e.target.value);
-    offsetYValue.textContent = activeLayer.offsetY;
+    editingState.offsetY = parseInt(e.target.value);
+    offsetYValue.textContent = editingState.offsetY;
+    hasUnsavedChanges = true;
     updateLayerTransforms();
+    updateUI();
 }
 
 function handleScaleChange(e) {
-    const activeLayer = layers.find(l => l.id === activeLayerId);
-    if (!activeLayer) return;
+    if (!editingState) return;
 
-    activeLayer.scale = parseFloat(e.target.value);
-    scaleValue.textContent = activeLayer.scale.toFixed(1);
+    editingState.scale = parseFloat(e.target.value);
+    scaleValue.textContent = editingState.scale.toFixed(1);
+    hasUnsavedChanges = true;
     updateLayerTransforms();
+    updateUI();
 }
 
 function handleParallaxChange(e) {
-    const activeLayer = layers.find(l => l.id === activeLayerId);
-    if (!activeLayer) return;
+    if (!editingState) return;
 
-    activeLayer.parallaxStrength = parseFloat(e.target.value);
-    parallaxValue.textContent = activeLayer.parallaxStrength.toFixed(1);
+    editingState.parallaxStrength = parseFloat(e.target.value);
+    parallaxValue.textContent = editingState.parallaxStrength.toFixed(1);
+    hasUnsavedChanges = true;
     updateLayerTransforms();
+    updateUI();
 }
 
 function renderLayers() {
@@ -248,23 +271,26 @@ function renderLayers() {
 
     // Render each visible layer
     layers.forEach(layer => {
-        if (!layer.visibility || !layer.asciiArt) return;
+        // Use editingState for active layer, saved layer for others
+        const layerData = (layer.id === activeLayerId && editingState) ? editingState : layer;
+        
+        if (!layerData.visibility || !layerData.asciiArt) return;
 
         const layerDiv = document.createElement('div');
         layerDiv.className = 'ascii-layer';
         layerDiv.id = `layer-${layer.id}`;
         
         // For text content, wrap in a span with color
-        if (layer.contentType === 'text') {
-            layerDiv.innerHTML = `<span style="color: ${layer.color};">${layer.asciiArt}</span>`;
+        if (layerData.contentType === 'text') {
+            layerDiv.innerHTML = `<span style="color: ${layerData.color};">${layerData.asciiArt}</span>`;
         } else {
-            layerDiv.innerHTML = layer.asciiArt;
+            layerDiv.innerHTML = layerData.asciiArt;
         }
         
         // Apply positioning class
-        layerDiv.classList.add(`position-${layer.position}`);
-        layerDiv.style.fontSize = layer.fontSize + 'px';
-        layerDiv.style.zIndex = layer.zIndex;
+        layerDiv.classList.add(`position-${layerData.position}`);
+        layerDiv.style.fontSize = layerData.fontSize + 'px';
+        layerDiv.style.zIndex = layerData.zIndex;
         
         canvasContainer.appendChild(layerDiv);
     });
@@ -277,10 +303,13 @@ function updateLayerTransforms() {
         const layerDiv = document.getElementById(`layer-${layer.id}`);
         if (!layerDiv) return;
 
-        const scale = layer.scale;
+        // Use editingState for active layer, saved layer for others
+        const layerData = (layer.id === activeLayerId && editingState) ? editingState : layer;
+
+        const scale = layerData.scale;
         let transformOrigin = 'center';
         
-        switch(layer.position) {
+        switch(layerData.position) {
             case 'top-left':
                 transformOrigin = 'top left';
                 break;
@@ -300,16 +329,16 @@ function updateLayerTransforms() {
         
         layerDiv.style.transformOrigin = transformOrigin;
         
-        let translateX = layer.offsetX;
-        let translateY = layer.offsetY;
+        let translateX = layerData.offsetX;
+        let translateY = layerData.offsetY;
         
         if (parallaxEnabled) {
-            translateX += (mouseX - 0.5) * layer.parallaxStrength * 100;
-            translateY += (mouseY - 0.5) * layer.parallaxStrength * 100;
+            translateX += (mouseX - 0.5) * layerData.parallaxStrength * 100;
+            translateY += (mouseY - 0.5) * layerData.parallaxStrength * 100;
         }
         
         // For center position, add the centering transform
-        if (layer.position === 'center') {
+        if (layerData.position === 'center') {
             layerDiv.style.transform = `translate(calc(-50% + ${translateX}px), calc(-50% + ${translateY}px)) scale(${scale})`;
         } else {
             layerDiv.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
@@ -333,11 +362,16 @@ function updateUI() {
                 layerItem.classList.add('active');
             }
             
-            const preview = layer.asciiArt ? layer.asciiArt.substring(0, 30).replace(/\n/g, ' ') + '...' : '(empty)';
+            // Show editingState preview for active layer with unsaved changes, otherwise saved state
+            const displayData = (layer.id === activeLayerId && editingState) ? editingState : layer;
+            // Strip HTML tags from preview and show first 30 chars
+            const asciiText = displayData.asciiArt ? displayData.asciiArt.replace(/<[^>]*>/g, '') : '';
+            const preview = asciiText ? asciiText.substring(0, 30).replace(/\n/g, ' ') + '...' : '(empty)';
+            const unsavedIndicator = (layer.id === activeLayerId && hasUnsavedChanges) ? ' *' : '';
             
             layerItem.innerHTML = `
                 <div class="layer-header" data-layer-id="${layer.id}">
-                    <span class="layer-name">${layer.name}</span>
+                    <span class="layer-name">${layer.name}${unsavedIndicator}</span>
                     <div class="layer-controls">
                         <button class="layer-btn visibility-btn" data-layer-id="${layer.id}" title="Toggle visibility">
                             ${layer.visibility ? '👁️' : '👁️‍🗨️'}
@@ -405,33 +439,33 @@ function updateUI() {
         document.getElementById('layerControls').style.display = 'block';
     }
     
-    if (activeLayer) {
-        // Update content type
-        const contentTypeRadio = document.querySelector(`input[name="layerContentType"][value="${activeLayer.contentType}"]`);
+    if (activeLayer && editingState) {
+        // Update content type - use editingState
+        const contentTypeRadio = document.querySelector(`input[name="layerContentType"][value="${editingState.contentType}"]`);
         if (contentTypeRadio) contentTypeRadio.checked = true;
         
-        if (activeLayer.contentType === 'image') {
+        if (editingState.contentType === 'image') {
             document.getElementById('layerImageSection').style.display = 'block';
             document.getElementById('layerTextSection').style.display = 'none';
         } else {
             document.getElementById('layerImageSection').style.display = 'none';
             document.getElementById('layerTextSection').style.display = 'block';
-            layerTextarea.value = activeLayer.asciiArt;
+            layerTextarea.value = editingState.asciiArt;
         }
         
-        // Update other controls
-        layerColorPicker.value = activeLayer.color;
-        layerFontSize.value = activeLayer.fontSize;
-        layerFontSizeValue.textContent = activeLayer.fontSize;
-        positionSelect.value = activeLayer.position;
-        offsetX.value = activeLayer.offsetX;
-        offsetXValue.textContent = activeLayer.offsetX;
-        offsetY.value = activeLayer.offsetY;
-        offsetYValue.textContent = activeLayer.offsetY;
-        scaleSlider.value = activeLayer.scale;
-        scaleValue.textContent = activeLayer.scale.toFixed(1);
-        parallaxSlider.value = activeLayer.parallaxStrength;
-        parallaxValue.textContent = activeLayer.parallaxStrength.toFixed(1);
+        // Update other controls - use editingState
+        layerColorPicker.value = editingState.color;
+        layerFontSize.value = editingState.fontSize;
+        layerFontSizeValue.textContent = editingState.fontSize;
+        positionSelect.value = editingState.position;
+        offsetX.value = editingState.offsetX;
+        offsetXValue.textContent = editingState.offsetX;
+        offsetY.value = editingState.offsetY;
+        offsetYValue.textContent = editingState.offsetY;
+        scaleSlider.value = editingState.scale;
+        scaleValue.textContent = editingState.scale.toFixed(1);
+        parallaxSlider.value = editingState.parallaxStrength;
+        parallaxValue.textContent = editingState.parallaxStrength.toFixed(1);
     }
 
     // Enable/disable export buttons
@@ -441,9 +475,61 @@ function updateUI() {
     downloadMergedBtn.disabled = !hasLayers;
 }
 
-function setActiveLayer(layerId) {
-    activeLayerId = layerId;
+function saveCurrentLayer() {
+    if (!editingState || !activeLayerId) return;
+    
+    const layer = layers.find(l => l.id === activeLayerId);
+    if (!layer) return;
+    
+    // Copy editingState to the layer
+    layer.asciiArt = editingState.asciiArt;
+    layer.contentType = editingState.contentType;
+    layer.position = editingState.position;
+    layer.offsetX = editingState.offsetX;
+    layer.offsetY = editingState.offsetY;
+    layer.scale = editingState.scale;
+    layer.fontSize = editingState.fontSize;
+    layer.color = editingState.color;
+    layer.parallaxStrength = editingState.parallaxStrength;
+    
+    hasUnsavedChanges = false;
+    renderLayers(); // Update the canvas to show saved state
     updateUI();
+}
+
+function promptSaveChanges() {
+    const result = confirm('You have unsaved changes. Do you want to save them?\n\nOK = Save changes\nCancel = Discard changes');
+    
+    if (result) {
+        // User clicked OK - save changes
+        saveCurrentLayer();
+    } else {
+        // User clicked Cancel - discard changes
+        hasUnsavedChanges = false;
+    }
+    
+    return true; // Always proceed with the action
+}
+
+function setActiveLayer(layerId) {
+    // Check for unsaved changes before switching
+    if (hasUnsavedChanges && activeLayerId !== layerId) {
+        if (!promptSaveChanges()) {
+            return; // User cancelled
+        }
+    }
+    
+    activeLayerId = layerId;
+    
+    // Initialize editingState with the new active layer
+    const layer = layers.find(l => l.id === layerId);
+    if (layer) {
+        editingState = { ...layer };
+        hasUnsavedChanges = false;
+    }
+    
+    updateUI();
+    renderLayers();
 }
 
 function toggleLayerVisibility(layerId) {
@@ -484,12 +570,28 @@ function moveLayerDown(layerId) {
 }
 
 function deleteLayer(layerId) {
-    const confirmDelete = confirm('Are you sure you want to delete this layer?');
-    if (!confirmDelete) return;
+    // Check for unsaved changes if deleting active layer
+    if (layerId === activeLayerId && hasUnsavedChanges) {
+        const result = confirm('This layer has unsaved changes. Are you sure you want to delete it?');
+        if (!result) return;
+    } else {
+        const confirmDelete = confirm('Are you sure you want to delete this layer?');
+        if (!confirmDelete) return;
+    }
     
     layers = layers.filter(l => l.id !== layerId);
     if (activeLayerId === layerId) {
         activeLayerId = layers.length > 0 ? layers[layers.length - 1].id : null;
+        editingState = null;
+        hasUnsavedChanges = false;
+        
+        // Load editingState for the new active layer
+        if (activeLayerId) {
+            const newActiveLayer = layers.find(l => l.id === activeLayerId);
+            if (newActiveLayer) {
+                editingState = { ...newActiveLayer };
+            }
+        }
     }
     renderLayers();
     updateUI();
