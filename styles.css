@@ -172,23 +172,23 @@ body {
 }
 
 .ascii-layer.position-top-left {
-    top: 10px;
-    left: 10px;
+    top: 0;
+    left: 0;
 }
 
 .ascii-layer.position-top-right {
-    top: 10px;
-    right: 10px;
+    top: 0;
+    right: 0;
 }
 
 .ascii-layer.position-bottom-left {
-    bottom: 10px;
-    left: 10px;
+    bottom: 0;
+    left: 0;
 }
 
 .ascii-layer.position-bottom-right {
-    bottom: 10px;
-    right: 10px;
+    bottom: 0;
+    right: 0;
 }
 
 .ascii-layer.position-center {

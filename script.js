@@ -21,10 +21,8 @@ const scaleValue = document.getElementById('scaleValue');
 const parallaxSlider = document.getElementById('parallaxSlider');
 const parallaxValue = document.getElementById('parallaxValue');
 
-// Export buttons
-const downloadBtn = document.getElementById('downloadBtn');
-const downloadAllBtn = document.getElementById('downloadAllBtn');
-const downloadMergedBtn = document.getElementById('downloadMergedBtn');
+// Export button
+const exportBtn = document.getElementById('exportBtn');
 const saveLayerBtn = document.getElementById('saveLayerBtn');
 
 // Layer system state
@@ -62,10 +60,8 @@ offsetY.addEventListener('input', handleOffsetYChange);
 scaleSlider.addEventListener('input', handleScaleChange);
 parallaxSlider.addEventListener('input', handleParallaxChange);
 
-// Export listeners
-downloadBtn.addEventListener('click', downloadActiveLayerAsHTML);
-downloadAllBtn.addEventListener('click', downloadAllLayersAsHTML);
-downloadMergedBtn.addEventListener('click', downloadMergedAsHTML);
+// Export listener
+exportBtn.addEventListener('click', exportHTML);
 saveLayerBtn.addEventListener('click', saveCurrentLayer);
 
 // Initialize
@@ -468,11 +464,9 @@ function updateUI() {
         parallaxValue.textContent = editingState.parallaxStrength.toFixed(1);
     }
 
-    // Enable/disable export buttons
+    // Enable/disable export button
     const hasLayers = layers.length > 0 && layers.some(l => l.asciiArt);
-    downloadBtn.disabled = !hasActiveLayer || !activeLayer?.asciiArt;
-    downloadAllBtn.disabled = !hasLayers;
-    downloadMergedBtn.disabled = !hasLayers;
+    exportBtn.disabled = !hasLayers;
 }
 
 function saveCurrentLayer() {
@@ -629,109 +623,88 @@ function stopParallax() {
     }
 }
 
-// Export functions
-function downloadActiveLayerAsHTML() {
-    const activeLayer = layers.find(l => l.id === activeLayerId);
-    if (!activeLayer || !activeLayer.asciiArt) return;
-
-    const htmlContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASCII Art - ${activeLayer.name}</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            background-color: #000;
-            color: ${activeLayer.color};
-            font-family: 'Courier New', monospace;
-        }
-        .ascii-art {
-            white-space: pre;
-            font-size: ${activeLayer.fontSize}px;
-            line-height: 1;
-            display: inline-block;
-        }
-    </style>
-</head>
-<body>
-    <div class="ascii-art">${activeLayer.asciiArt}</div>
-</body>
-</html>`;
-
-    downloadFile(htmlContent, `${activeLayer.name.replace(/\s+/g, '-')}.html`);
-}
-
-function downloadAllLayersAsHTML() {
+// Export function
+function exportHTML() {
     if (layers.length === 0) return;
 
+    // Filter visible layers with content
+    const visibleLayers = layers.filter(l => l.visibility && l.asciiArt);
+    if (visibleLayers.length === 0) return;
+
+    // Generate layers HTML
     let layersHTML = '';
-    
-    layers.filter(l => l.visibility && l.asciiArt).forEach(layer => {
+    visibleLayers.forEach(layer => {
         const positionClass = `position-${layer.position}`;
-        const colorStyle = layer.contentType === 'text' ? `color: ${layer.color};` : '';
+        let content = '';
         
-        let transformStyle = '';
-        if (layer.position === 'center') {
-            transformStyle = `transform: translate(calc(-50% + ${layer.offsetX}px), calc(-50% + ${layer.offsetY}px)) scale(${layer.scale});`;
+        if (layer.contentType === 'text') {
+            content = `<span style="color: ${layer.color};">${layer.asciiArt}</span>`;
         } else {
-            transformStyle = `transform: translate(${layer.offsetX}px, ${layer.offsetY}px) scale(${layer.scale});`;
+            content = layer.asciiArt;
         }
         
-        layersHTML += `        <div class="ascii-layer ${positionClass}" style="z-index: ${layer.zIndex}; font-size: ${layer.fontSize}px; ${colorStyle} ${transformStyle} transform-origin: ${getTransformOrigin(layer.position)};">
-            ${layer.contentType === 'text' ? `<span style="color: ${layer.color};">${layer.asciiArt}</span>` : layer.asciiArt}
+        layersHTML += `        <div class="ascii-layer ${positionClass}" data-layer-id="${layer.id}" data-parallax="${layer.parallaxStrength}" data-offset-x="${layer.offsetX}" data-offset-y="${layer.offsetY}" data-scale="${layer.scale}" style="z-index: ${layer.zIndex}; font-size: ${layer.fontSize}px;">
+${content}
         </div>\n`;
     });
 
+    // Generate the complete HTML
     const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASCII Art - All Layers</title>
+    <title>ASCII Art</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+        
         body {
-            background-color: #fff;
+            background-color: #ffffff;
             font-family: 'Courier New', monospace;
             width: 100vw;
             height: 100vh;
             overflow: hidden;
         }
+        
         .canvas-container {
             position: relative;
             width: 100%;
             height: 100%;
         }
+        
         .ascii-layer {
-            white-space: pre;
-            line-height: 1;
             position: absolute;
-            padding: 10px;
+            line-height: 1;
+            white-space: pre;
+            font-family: 'Courier New', monospace;
+            transition: transform 0.05s ease-out;
         }
-        .position-top-left {
-            top: 10px;
-            left: 10px;
+        
+        .ascii-layer.position-top-left {
+            top: 0;
+            left: 0;
         }
-        .position-top-right {
-            top: 10px;
-            right: 10px;
+        
+        .ascii-layer.position-top-right {
+            top: 0;
+            right: 0;
         }
-        .position-bottom-left {
-            bottom: 10px;
-            left: 10px;
+        
+        .ascii-layer.position-bottom-left {
+            bottom: 0;
+            left: 0;
         }
-        .position-bottom-right {
-            bottom: 10px;
-            right: 10px;
+        
+        .ascii-layer.position-bottom-right {
+            bottom: 0;
+            right: 0;
         }
-        .position-center {
+        
+        .ascii-layer.position-center {
             top: 50%;
             left: 50%;
         }
@@ -741,71 +714,82 @@ function downloadAllLayersAsHTML() {
     <div class="canvas-container">
 ${layersHTML}
     </div>
+
+    <script>
+        // Parallax state
+        let mouseX = 0.5;
+        let mouseY = 0.5;
+        let animationFrameId = null;
+
+        // Get all layers and their properties
+        const layers = Array.from(document.querySelectorAll('.ascii-layer')).map(layerDiv => ({
+            element: layerDiv,
+            parallaxStrength: parseFloat(layerDiv.dataset.parallax),
+            offsetX: parseInt(layerDiv.dataset.offsetX),
+            offsetY: parseInt(layerDiv.dataset.offsetY),
+            scale: parseFloat(layerDiv.dataset.scale),
+            position: layerDiv.className.match(/position-([\\w-]+)/)[1]
+        }));
+
+        // Mouse movement handler
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX / window.innerWidth;
+            mouseY = e.clientY / window.innerHeight;
+        });
+
+        // Update layer transforms with parallax
+        function updateLayerTransforms() {
+            layers.forEach(layer => {
+                const { element, parallaxStrength, offsetX, offsetY, scale, position } = layer;
+                
+                // Calculate transform origin
+                let transformOrigin = 'center';
+                switch(position) {
+                    case 'top-left':
+                        transformOrigin = 'top left';
+                        break;
+                    case 'top-right':
+                        transformOrigin = 'top right';
+                        break;
+                    case 'bottom-left':
+                        transformOrigin = 'bottom left';
+                        break;
+                    case 'bottom-right':
+                        transformOrigin = 'bottom right';
+                        break;
+                    case 'center':
+                        transformOrigin = 'center';
+                        break;
+                }
+                
+                element.style.transformOrigin = transformOrigin;
+                
+                // Apply parallax offset
+                const translateX = offsetX + (mouseX - 0.5) * parallaxStrength * 100;
+                const translateY = offsetY + (mouseY - 0.5) * parallaxStrength * 100;
+                
+                // Apply transform based on position
+                if (position === 'center') {
+                    element.style.transform = \`translate(calc(-50% + \${translateX}px), calc(-50% + \${translateY}px)) scale(\${scale})\`;
+                } else {
+                    element.style.transform = \`translate(\${translateX}px, \${translateY}px) scale(\${scale})\`;
+                }
+            });
+        }
+
+        // Animation loop
+        function animate() {
+            updateLayerTransforms();
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        // Start animation on page load
+        animate();
+    </script>
 </body>
 </html>`;
 
-    downloadFile(htmlContent, 'ascii-art-all-layers.html');
-}
-
-function downloadMergedAsHTML() {
-    if (layers.length === 0) return;
-
-    const htmlContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASCII Art - Merged</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            background-color: #fff;
-            font-family: 'Courier New', monospace;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container {
-            position: relative;
-        }
-        .ascii-layer {
-            white-space: pre;
-            line-height: 1;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        ${layers.filter(l => l.visibility && l.asciiArt).map(layer => `
-        <div class="ascii-layer" style="z-index: ${layer.zIndex}; font-size: ${layer.fontSize}px; ${layer.contentType === 'text' ? `color: ${layer.color};` : ''}">
-            ${layer.contentType === 'text' ? `<span style="color: ${layer.color};">${layer.asciiArt}</span>` : layer.asciiArt}
-        </div>`).join('\n')}
-    </div>
-</body>
-</html>`;
-
-    downloadFile(htmlContent, 'ascii-art-merged.html');
-}
-
-function getTransformOrigin(position) {
-    switch(position) {
-        case 'top-left': return 'top left';
-        case 'top-right': return 'top right';
-        case 'bottom-left': return 'bottom left';
-        case 'bottom-right': return 'bottom right';
-        case 'center': return 'center';
-        default: return 'center';
-    }
+    downloadFile(htmlContent, 'ascii-art.html');
 }
 
 function downloadFile(content, filename) {
@@ -819,3 +803,4 @@ function downloadFile(content, filename) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
+
