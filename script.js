@@ -921,6 +921,17 @@ ${layer.asciiArt}
             top: 50%;
             left: 50%;
         }
+        
+        /* Twinkle animation for special characters in ASCII art */
+        .twinkle {
+            display: inline;
+            animation: twinkle 2s ease-in-out infinite;
+        }
+        
+        @keyframes twinkle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
     </style>
 </head>
 <body>
