@@ -1,0 +1,719 @@
+// DOM elements
+const newLayerBtn = document.getElementById('newLayerBtn');
+const layersList = document.getElementById('layersList');
+const canvasContainer = document.querySelector('.canvas-container');
+const enableParallaxToggle = document.getElementById('enableParallaxToggle');
+
+// Layer control elements
+const layerContentType = document.getElementsByName('layerContentType');
+const layerImageUpload = document.getElementById('layerImageUpload');
+const layerTextarea = document.getElementById('layerTextarea');
+const layerColorPicker = document.getElementById('layerColorPicker');
+const layerFontSize = document.getElementById('layerFontSize');
+const layerFontSizeValue = document.getElementById('layerFontSizeValue');
+const positionSelect = document.getElementById('positionSelect');
+const offsetX = document.getElementById('offsetX');
+const offsetXValue = document.getElementById('offsetXValue');
+const offsetY = document.getElementById('offsetY');
+const offsetYValue = document.getElementById('offsetYValue');
+const scaleSlider = document.getElementById('scaleSlider');
+const scaleValue = document.getElementById('scaleValue');
+const parallaxSlider = document.getElementById('parallaxSlider');
+const parallaxValue = document.getElementById('parallaxValue');
+
+// Export buttons
+const downloadBtn = document.getElementById('downloadBtn');
+const downloadAllBtn = document.getElementById('downloadAllBtn');
+const downloadMergedBtn = document.getElementById('downloadMergedBtn');
+
+// Layer system state
+let layers = [];
+let activeLayerId = null;
+let nextLayerId = 1;
+
+// Parallax state
+let parallaxEnabled = false;
+let mouseX = 0.5;
+let mouseY = 0.5;
+let animationFrameId = null;
+
+// Unicode block characters for ASCII art
+const BLOCKS = [' ', '░', '▒', '▓', '█'];
+
+// Event listeners
+newLayerBtn.addEventListener('click', createNewLayer);
+enableParallaxToggle.addEventListener('change', handleParallaxToggle);
+document.addEventListener('mousemove', handleMouseMove);
+
+// Layer control listeners
+layerContentType.forEach(radio => {
+    radio.addEventListener('change', handleLayerContentTypeChange);
+});
+layerImageUpload.addEventListener('change', handleLayerImageUpload);
+layerTextarea.addEventListener('input', handleLayerTextInput);
+layerColorPicker.addEventListener('input', handleLayerColorChange);
+layerFontSize.addEventListener('input', handleLayerFontSizeChange);
+positionSelect.addEventListener('change', handlePositionChange);
+offsetX.addEventListener('input', handleOffsetXChange);
+offsetY.addEventListener('input', handleOffsetYChange);
+scaleSlider.addEventListener('input', handleScaleChange);
+parallaxSlider.addEventListener('input', handleParallaxChange);
+
+// Export listeners
+downloadBtn.addEventListener('click', downloadActiveLayerAsHTML);
+downloadAllBtn.addEventListener('click', downloadAllLayersAsHTML);
+downloadMergedBtn.addEventListener('click', downloadMergedAsHTML);
+
+// Initialize
+updateUI();
+
+function createNewLayer() {
+    const layer = {
+        id: nextLayerId++,
+        name: `Layer ${nextLayerId - 1}`,
+        asciiArt: '',
+        contentType: 'image', // 'image' or 'text'
+        position: 'center',
+        offsetX: 0,
+        offsetY: 0,
+        scale: 1,
+        fontSize: 12,
+        color: '#ffffff',
+        zIndex: layers.length + 2,
+        visibility: true,
+        parallaxStrength: 0.3 + (layers.length * 0.1)
+    };
+
+    layers.push(layer);
+    activeLayerId = layer.id;
+    
+    updateUI();
+    renderLayers();
+}
+
+function handleLayerImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file || !activeLayerId) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            convertImageToAscii(img);
+        };
+        img.onerror = () => {
+            alert('Failed to load image');
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+    
+    event.target.value = '';
+}
+
+function convertImageToAscii(img) {
+    const activeLayer = layers.find(l => l.id === activeLayerId);
+    if (!activeLayer) return;
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const width = 100;
+    const height = Math.floor((img.height / img.width) * width * 0.55);
+    
+    canvas.width = width;
+    canvas.height = height;
+
+    ctx.drawImage(img, 0, 0, width, height);
+
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+
+    let asciiArt = '';
+    for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+
+        const isWhite = r > 240 && g > 240 && b > 240;
+
+        if (isWhite) {
+            asciiArt += `<span style="opacity: 0;"> </span>`;
+        } else {
+            const brightness = (r + g + b) / 3;
+            const blockIndex = Math.floor((brightness / 255) * (BLOCKS.length - 1));
+            const block = BLOCKS[blockIndex];
+            const color = `rgb(${r}, ${g}, ${b})`;
+            asciiArt += `<span style="color: ${color};">${block}</span>`;
+        }
+
+        if ((Math.floor(i / 4) + 1) % width === 0) {
+            asciiArt += '\n';
+        }
+    }
+
+    activeLayer.asciiArt = asciiArt;
+    activeLayer.contentType = 'image';
+    
+    renderLayers();
+    updateUI();
+}
+
+function handleLayerTextInput(e) {
+    const activeLayer = layers.find(l => l.id === activeLayerId);
+    if (!activeLayer) return;
+
+    activeLayer.asciiArt = e.target.value;
+    activeLayer.contentType = 'text';
+    
+    renderLayers();
+}
+
+function handleLayerContentTypeChange(e) {
+    const mode = e.target.value;
+    if (mode === 'image') {
+        document.getElementById('layerImageSection').style.display = 'block';
+        document.getElementById('layerTextSection').style.display = 'none';
+    } else {
+        document.getElementById('layerImageSection').style.display = 'none';
+        document.getElementById('layerTextSection').style.display = 'block';
+    }
+}
+
+function handleLayerColorChange(e) {
+    const activeLayer = layers.find(l => l.id === activeLayerId);
+    if (!activeLayer) return;
+
+    activeLayer.color = e.target.value;
+    renderLayers();
+}
+
+function handleLayerFontSizeChange(e) {
+    const activeLayer = layers.find(l => l.id === activeLayerId);
+    if (!activeLayer) return;
+
+    activeLayer.fontSize = parseInt(e.target.value);
+    layerFontSizeValue.textContent = activeLayer.fontSize;
+    renderLayers();
+}
+
+function handlePositionChange(e) {
+    const activeLayer = layers.find(l => l.id === activeLayerId);
+    if (!activeLayer) return;
+
+    activeLayer.position = e.target.value;
+    renderLayers();
+}
+
+function handleOffsetXChange(e) {
+    const activeLayer = layers.find(l => l.id === activeLayerId);
+    if (!activeLayer) return;
+
+    activeLayer.offsetX = parseInt(e.target.value);
+    offsetXValue.textContent = activeLayer.offsetX;
+    updateLayerTransforms();
+}
+
+function handleOffsetYChange(e) {
+    const activeLayer = layers.find(l => l.id === activeLayerId);
+    if (!activeLayer) return;
+
+    activeLayer.offsetY = parseInt(e.target.value);
+    offsetYValue.textContent = activeLayer.offsetY;
+    updateLayerTransforms();
+}
+
+function handleScaleChange(e) {
+    const activeLayer = layers.find(l => l.id === activeLayerId);
+    if (!activeLayer) return;
+
+    activeLayer.scale = parseFloat(e.target.value);
+    scaleValue.textContent = activeLayer.scale.toFixed(1);
+    updateLayerTransforms();
+}
+
+function handleParallaxChange(e) {
+    const activeLayer = layers.find(l => l.id === activeLayerId);
+    if (!activeLayer) return;
+
+    activeLayer.parallaxStrength = parseFloat(e.target.value);
+    parallaxValue.textContent = activeLayer.parallaxStrength.toFixed(1);
+    updateLayerTransforms();
+}
+
+function renderLayers() {
+    // Remove all existing layer elements
+    const existingLayers = canvasContainer.querySelectorAll('.ascii-layer');
+    existingLayers.forEach(el => el.remove());
+
+    // Render each visible layer
+    layers.forEach(layer => {
+        if (!layer.visibility || !layer.asciiArt) return;
+
+        const layerDiv = document.createElement('div');
+        layerDiv.className = 'ascii-layer';
+        layerDiv.id = `layer-${layer.id}`;
+        
+        // For text content, wrap in a span with color
+        if (layer.contentType === 'text') {
+            layerDiv.innerHTML = `<span style="color: ${layer.color};">${layer.asciiArt}</span>`;
+        } else {
+            layerDiv.innerHTML = layer.asciiArt;
+        }
+        
+        // Apply positioning class
+        layerDiv.classList.add(`position-${layer.position}`);
+        layerDiv.style.fontSize = layer.fontSize + 'px';
+        layerDiv.style.zIndex = layer.zIndex;
+        
+        canvasContainer.appendChild(layerDiv);
+    });
+
+    updateLayerTransforms();
+}
+
+function updateLayerTransforms() {
+    layers.forEach(layer => {
+        const layerDiv = document.getElementById(`layer-${layer.id}`);
+        if (!layerDiv) return;
+
+        const scale = layer.scale;
+        let transformOrigin = 'center';
+        
+        switch(layer.position) {
+            case 'top-left':
+                transformOrigin = 'top left';
+                break;
+            case 'top-right':
+                transformOrigin = 'top right';
+                break;
+            case 'bottom-left':
+                transformOrigin = 'bottom left';
+                break;
+            case 'bottom-right':
+                transformOrigin = 'bottom right';
+                break;
+            case 'center':
+                transformOrigin = 'center';
+                break;
+        }
+        
+        layerDiv.style.transformOrigin = transformOrigin;
+        
+        let translateX = layer.offsetX;
+        let translateY = layer.offsetY;
+        
+        if (parallaxEnabled) {
+            translateX += (mouseX - 0.5) * layer.parallaxStrength * 100;
+            translateY += (mouseY - 0.5) * layer.parallaxStrength * 100;
+        }
+        
+        // For center position, add the centering transform
+        if (layer.position === 'center') {
+            layerDiv.style.transform = `translate(calc(-50% + ${translateX}px), calc(-50% + ${translateY}px)) scale(${scale})`;
+        } else {
+            layerDiv.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+        }
+    });
+}
+
+function updateUI() {
+    // Update layer list
+    layersList.innerHTML = '';
+    
+    if (layers.length === 0) {
+        layersList.innerHTML = '<div class="empty-state">No layers yet. Click "+ New Layer" to start!</div>';
+        document.getElementById('layerControls').style.display = 'none';
+    } else {
+        // Display layers
+        layers.forEach((layer, index) => {
+            const layerItem = document.createElement('div');
+            layerItem.className = 'layer-item';
+            if (layer.id === activeLayerId) {
+                layerItem.classList.add('active');
+            }
+            
+            const preview = layer.asciiArt ? layer.asciiArt.substring(0, 30).replace(/\n/g, ' ') + '...' : '(empty)';
+            
+            layerItem.innerHTML = `
+                <div class="layer-header" data-layer-id="${layer.id}">
+                    <span class="layer-name">${layer.name}</span>
+                    <div class="layer-controls">
+                        <button class="layer-btn visibility-btn" data-layer-id="${layer.id}" title="Toggle visibility">
+                            ${layer.visibility ? '👁️' : '👁️‍🗨️'}
+                        </button>
+                        <button class="layer-btn up-btn" data-layer-id="${layer.id}" title="Move up" ${index === layers.length - 1 ? 'disabled' : ''}>↑</button>
+                        <button class="layer-btn down-btn" data-layer-id="${layer.id}" title="Move down" ${index === 0 ? 'disabled' : ''}>↓</button>
+                        <button class="layer-btn delete-btn" data-layer-id="${layer.id}" title="Delete">🗑️</button>
+                    </div>
+                </div>
+                <div class="layer-preview">${preview}</div>
+            `;
+            
+            layersList.appendChild(layerItem);
+        });
+    }
+
+    // Add event listeners to layer controls
+    document.querySelectorAll('.layer-header').forEach(header => {
+        header.addEventListener('click', (e) => {
+            if (!e.target.closest('button')) {
+                const layerId = parseInt(header.dataset.layerId);
+                setActiveLayer(layerId);
+            }
+        });
+    });
+
+    document.querySelectorAll('.visibility-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const layerId = parseInt(btn.dataset.layerId);
+            toggleLayerVisibility(layerId);
+        });
+    });
+
+    document.querySelectorAll('.up-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const layerId = parseInt(btn.dataset.layerId);
+            moveLayerUp(layerId);
+        });
+    });
+
+    document.querySelectorAll('.down-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const layerId = parseInt(btn.dataset.layerId);
+            moveLayerDown(layerId);
+        });
+    });
+
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const layerId = parseInt(btn.dataset.layerId);
+            deleteLayer(layerId);
+        });
+    });
+
+    // Update active layer controls
+    const activeLayer = layers.find(l => l.id === activeLayerId);
+    const hasActiveLayer = activeLayer !== undefined;
+    
+    // Enable/disable controls based on active layer
+    if (hasActiveLayer) {
+        document.getElementById('layerControls').style.display = 'block';
+    }
+    
+    if (activeLayer) {
+        // Update content type
+        const contentTypeRadio = document.querySelector(`input[name="layerContentType"][value="${activeLayer.contentType}"]`);
+        if (contentTypeRadio) contentTypeRadio.checked = true;
+        
+        if (activeLayer.contentType === 'image') {
+            document.getElementById('layerImageSection').style.display = 'block';
+            document.getElementById('layerTextSection').style.display = 'none';
+        } else {
+            document.getElementById('layerImageSection').style.display = 'none';
+            document.getElementById('layerTextSection').style.display = 'block';
+            layerTextarea.value = activeLayer.asciiArt;
+        }
+        
+        // Update other controls
+        layerColorPicker.value = activeLayer.color;
+        layerFontSize.value = activeLayer.fontSize;
+        layerFontSizeValue.textContent = activeLayer.fontSize;
+        positionSelect.value = activeLayer.position;
+        offsetX.value = activeLayer.offsetX;
+        offsetXValue.textContent = activeLayer.offsetX;
+        offsetY.value = activeLayer.offsetY;
+        offsetYValue.textContent = activeLayer.offsetY;
+        scaleSlider.value = activeLayer.scale;
+        scaleValue.textContent = activeLayer.scale.toFixed(1);
+        parallaxSlider.value = activeLayer.parallaxStrength;
+        parallaxValue.textContent = activeLayer.parallaxStrength.toFixed(1);
+    }
+
+    // Enable/disable export buttons
+    const hasLayers = layers.length > 0 && layers.some(l => l.asciiArt);
+    downloadBtn.disabled = !hasActiveLayer || !activeLayer?.asciiArt;
+    downloadAllBtn.disabled = !hasLayers;
+    downloadMergedBtn.disabled = !hasLayers;
+}
+
+function setActiveLayer(layerId) {
+    activeLayerId = layerId;
+    updateUI();
+}
+
+function toggleLayerVisibility(layerId) {
+    const layer = layers.find(l => l.id === layerId);
+    if (layer) {
+        layer.visibility = !layer.visibility;
+        renderLayers();
+        updateUI();
+    }
+}
+
+function moveLayerUp(layerId) {
+    const index = layers.findIndex(l => l.id === layerId);
+    if (index < layers.length - 1) {
+        const temp = layers[index].zIndex;
+        layers[index].zIndex = layers[index + 1].zIndex;
+        layers[index + 1].zIndex = temp;
+        
+        [layers[index], layers[index + 1]] = [layers[index + 1], layers[index]];
+        
+        renderLayers();
+        updateUI();
+    }
+}
+
+function moveLayerDown(layerId) {
+    const index = layers.findIndex(l => l.id === layerId);
+    if (index > 0) {
+        const temp = layers[index].zIndex;
+        layers[index].zIndex = layers[index - 1].zIndex;
+        layers[index - 1].zIndex = temp;
+        
+        [layers[index], layers[index - 1]] = [layers[index - 1], layers[index]];
+        
+        renderLayers();
+        updateUI();
+    }
+}
+
+function deleteLayer(layerId) {
+    const confirmDelete = confirm('Are you sure you want to delete this layer?');
+    if (!confirmDelete) return;
+    
+    layers = layers.filter(l => l.id !== layerId);
+    if (activeLayerId === layerId) {
+        activeLayerId = layers.length > 0 ? layers[layers.length - 1].id : null;
+    }
+    renderLayers();
+    updateUI();
+}
+
+// Parallax handling
+function handleParallaxToggle(e) {
+    parallaxEnabled = e.target.checked;
+    if (parallaxEnabled) {
+        startParallax();
+    } else {
+        stopParallax();
+        updateLayerTransforms();
+    }
+}
+
+function handleMouseMove(e) {
+    if (!parallaxEnabled) return;
+    mouseX = e.clientX / window.innerWidth;
+    mouseY = e.clientY / window.innerHeight;
+}
+
+function startParallax() {
+    function animate() {
+        updateLayerTransforms();
+        animationFrameId = requestAnimationFrame(animate);
+    }
+    animate();
+}
+
+function stopParallax() {
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
+}
+
+// Export functions
+function downloadActiveLayerAsHTML() {
+    const activeLayer = layers.find(l => l.id === activeLayerId);
+    if (!activeLayer || !activeLayer.asciiArt) return;
+
+    const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCII Art - ${activeLayer.name}</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #000;
+            color: ${activeLayer.color};
+            font-family: 'Courier New', monospace;
+        }
+        .ascii-art {
+            white-space: pre;
+            font-size: ${activeLayer.fontSize}px;
+            line-height: 1;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="ascii-art">${activeLayer.asciiArt}</div>
+</body>
+</html>`;
+
+    downloadFile(htmlContent, `${activeLayer.name.replace(/\s+/g, '-')}.html`);
+}
+
+function downloadAllLayersAsHTML() {
+    if (layers.length === 0) return;
+
+    let layersHTML = '';
+    
+    layers.filter(l => l.visibility && l.asciiArt).forEach(layer => {
+        const positionClass = `position-${layer.position}`;
+        const colorStyle = layer.contentType === 'text' ? `color: ${layer.color};` : '';
+        
+        let transformStyle = '';
+        if (layer.position === 'center') {
+            transformStyle = `transform: translate(calc(-50% + ${layer.offsetX}px), calc(-50% + ${layer.offsetY}px)) scale(${layer.scale});`;
+        } else {
+            transformStyle = `transform: translate(${layer.offsetX}px, ${layer.offsetY}px) scale(${layer.scale});`;
+        }
+        
+        layersHTML += `        <div class="ascii-layer ${positionClass}" style="z-index: ${layer.zIndex}; font-size: ${layer.fontSize}px; ${colorStyle} ${transformStyle} transform-origin: ${getTransformOrigin(layer.position)};">
+            ${layer.contentType === 'text' ? `<span style="color: ${layer.color};">${layer.asciiArt}</span>` : layer.asciiArt}
+        </div>\n`;
+    });
+
+    const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCII Art - All Layers</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background-color: #fff;
+            font-family: 'Courier New', monospace;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        .ascii-layer {
+            white-space: pre;
+            line-height: 1;
+            position: absolute;
+            padding: 10px;
+        }
+        .position-top-left {
+            top: 10px;
+            left: 10px;
+        }
+        .position-top-right {
+            top: 10px;
+            right: 10px;
+        }
+        .position-bottom-left {
+            bottom: 10px;
+            left: 10px;
+        }
+        .position-bottom-right {
+            bottom: 10px;
+            right: 10px;
+        }
+        .position-center {
+            top: 50%;
+            left: 50%;
+        }
+    </style>
+</head>
+<body>
+    <div class="canvas-container">
+${layersHTML}
+    </div>
+</body>
+</html>`;
+
+    downloadFile(htmlContent, 'ascii-art-all-layers.html');
+}
+
+function downloadMergedAsHTML() {
+    if (layers.length === 0) return;
+
+    const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCII Art - Merged</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background-color: #fff;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            position: relative;
+        }
+        .ascii-layer {
+            white-space: pre;
+            line-height: 1;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        ${layers.filter(l => l.visibility && l.asciiArt).map(layer => `
+        <div class="ascii-layer" style="z-index: ${layer.zIndex}; font-size: ${layer.fontSize}px; ${layer.contentType === 'text' ? `color: ${layer.color};` : ''}">
+            ${layer.contentType === 'text' ? `<span style="color: ${layer.color};">${layer.asciiArt}</span>` : layer.asciiArt}
+        </div>`).join('\n')}
+    </div>
+</body>
+</html>`;
+
+    downloadFile(htmlContent, 'ascii-art-merged.html');
+}
+
+function getTransformOrigin(position) {
+    switch(position) {
+        case 'top-left': return 'top left';
+        case 'top-right': return 'top right';
+        case 'bottom-left': return 'bottom left';
+        case 'bottom-right': return 'bottom right';
+        case 'center': return 'center';
+        default: return 'center';
+    }
+}
+
+function downloadFile(content, filename) {
+    const blob = new Blob([content], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
