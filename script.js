@@ -753,6 +753,11 @@ function stopParallax() {
 function exportHTML() {
     if (layers.length === 0) return;
 
+    // Auto-save any unsaved changes before exporting
+    if (hasUnsavedChanges && activeLayerId && editingState) {
+        saveCurrentLayer();
+    }
+
     // Filter visible layers with content
     const visibleLayers = layers.filter(l => l.visibility && (l.asciiArt || l.imageData));
     if (visibleLayers.length === 0) return;
