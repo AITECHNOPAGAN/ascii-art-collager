@@ -932,12 +932,61 @@ ${layer.asciiArt}
             0%, 100% { opacity: 1; }
             50% { opacity: 0.3; }
         }
+        
+        /* Generator Link Styles */
+        .generator-link {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            color: #666;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 9999;
+        }
+        
+        .generator-link:hover {
+            color: #4a9eff;
+            border-color: #4a9eff;
+            box-shadow: 0 4px 16px rgba(74, 158, 255, 0.3);
+            transform: translateX(-50%) translateY(-2px);
+        }
+        
+        .generator-link::before {
+            content: '✨ ';
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .generator-link:hover::before {
+            opacity: 1;
+        }
+        
+        .generator-link::after {
+            content: ' ✨';
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .generator-link:hover::after {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
     <div class="canvas-container">
 ${layersHTML}
     </div>
+    
+    <a href="https://aitechnopagan.github.io/sailormoonrpg/" class="generator-link" target="_blank">Made with ASCII Art Generator</a>
 
     <script>
         // Parallax state
