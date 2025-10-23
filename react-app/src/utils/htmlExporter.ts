@@ -62,16 +62,63 @@ export function getResolutionStyles(resolution: string): ResolutionStyles {
 function exportAsciiLayer(layer: AsciiLayer): string {
     // Export lattice as grid of styled characters
     let content = '';
-    const { lattice, fontSize } = layer;
+    const { lattice, fontSize, tintColor } = layer;
 
     if (!lattice || lattice.cells.length === 0) return '';
+
+    // Helper function to apply tint color
+    const applyTintColor = (originalColor: string, tintColor: string): string => {
+        // For black or near-black colors (#000000 or very dark), just use the tint directly
+        // Otherwise use multiply blend
+        const parseColor = (color: string): [number, number, number] => {
+            const hex = color.replace('#', '');
+            return [
+                parseInt(hex.substr(0, 2), 16),
+                parseInt(hex.substr(2, 2), 16),
+                parseInt(hex.substr(4, 2), 16)
+            ];
+        };
+
+        const toHex = (r: number, g: number, b: number): string => {
+            return '#' + [r, g, b].map(x => {
+                const hex = Math.round(x).toString(16);
+                return hex.length === 1 ? '0' + hex : hex;
+            }).join('');
+        };
+
+        try {
+            const [r1, g1, b1] = parseColor(originalColor);
+
+            // If original color is black or very dark (sum of RGB < 30), just use tint color
+            if (r1 + g1 + b1 < 30) {
+                return tintColor;
+            }
+
+            // Otherwise use multiply blend for colored ASCII art
+            const [r2, g2, b2] = parseColor(tintColor);
+            const r = (r1 * r2) / 255;
+            const g = (g1 * g2) / 255;
+            const b = (b1 * b2) / 255;
+
+            return toHex(r, g, b);
+        } catch (e) {
+            return originalColor;
+        }
+    };
 
     // Generate grid structure with inline styles for each cell
     for (let y = 0; y < lattice.height; y++) {
         for (let x = 0; x < lattice.width; x++) {
             const cell = lattice.cells[y][x];
+
+            // Apply tint color to non-empty cells
+            const isEmptyCell = cell.char === ' ' || cell.char === '' || cell.alpha === 0;
+            const textColor = (!isEmptyCell && tintColor)
+                ? applyTintColor(cell.textColor, tintColor)
+                : cell.textColor;
+
             const bgStyle = cell.bgColor !== 'transparent' ? `background-color: ${cell.bgColor};` : '';
-            const style = `color: ${cell.textColor}; ${bgStyle} opacity: ${cell.alpha};`;
+            const style = `color: ${textColor}; ${bgStyle} opacity: ${cell.alpha};`;
             content += `<span style="${style}">${cell.char}</span>`;
         }
         content += '\n';
@@ -88,8 +135,13 @@ function exportImageLayer(layer: ImageLayer): string {
     if (!displayImage) return '';
 
     const positionClass = `position-${layer.position}`;
+    const tintOverlay = (layer.tintColor && layer.tintColor !== '#ffffff')
+        ? `<div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: ${layer.tintColor}; mix-blend-mode: multiply; pointer-events: none;"></div>`
+        : '';
+
     return `        <div class="image-layer ${positionClass}" data-layer-id="${layer.id}" data-parallax="${layer.parallaxStrength}" data-offset-x="${layer.offsetX}" data-offset-y="${layer.offsetY}" data-scale="${layer.scale}" style="z-index: ${layer.zIndex};">
             <img src="${displayImage}" style="max-width: 100%; max-height: 100%; display: block;">
+            ${tintOverlay}
         </div>\n`;
 }
 
@@ -110,6 +162,7 @@ export function generateExportHTML(
     if (visibleLayers.length === 0) return '';
 
     const { containerStyles, bodyStyles } = getResolutionStyles(config.resolution);
+    const bgColor = config.backgroundColor || '#ffffff';
 
     // Generate layers HTML
     let layersHTML = '';
@@ -142,7 +195,7 @@ export function generateExportHTML(
         
         .canvas-container {
             position: relative;
-            background-color: #ffffff;
+            background-color: ${bgColor};
             overflow: hidden;${containerStyles}
         }
         

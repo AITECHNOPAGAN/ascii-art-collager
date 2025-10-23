@@ -287,6 +287,20 @@ export const EditableImageLayer = observer(({ layer, parallaxOffset = { x: 0, y:
                     ref={canvasRef}
                     style={{ maxWidth: '100%', maxHeight: '100%', display: 'block' }}
                 />
+                {layer.tintColor && layer.tintColor !== '#ffffff' && (
+                    <div
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            backgroundColor: layer.tintColor,
+                            mixBlendMode: 'multiply',
+                            pointerEvents: 'none',
+                        }}
+                    />
+                )}
                 {renderCursorPreview()}
             </div>
         );

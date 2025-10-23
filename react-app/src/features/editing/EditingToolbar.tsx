@@ -16,6 +16,7 @@ export const EditingToolbar = observer(() => {
     const [showEditorDialog, setShowEditorDialog] = useState(false);
 
     const activeLayer = layerStore.activeLayer;
+    const editingState = layerStore.editingState;
     const { activeTool, brushSettings } = editingStore;
 
     if (!activeLayer) {
@@ -170,6 +171,45 @@ export const EditingToolbar = observer(() => {
                             max={1}
                             step={0.05}
                         />
+                    </div>
+                )}
+
+                {/* Full Image Tint Color (All Layers) */}
+                {editingState && (
+                    <div className="space-y-2 pt-2 border-t">
+                        <Label htmlFor="tint-color-picker">
+                            {editingState.type === 'ascii' ? 'Full Image Tint' : 'Image Tint'}
+                        </Label>
+                        <div className="flex gap-2">
+                            <Input
+                                id="tint-color-picker"
+                                type="color"
+                                value={editingState.tintColor || '#ffffff'}
+                                onChange={(e) => layerStore.setTintColor(e.target.value)}
+                                className="h-10 cursor-pointer flex-1"
+                                disabled={!editingState.tintColor}
+                            />
+                            <Button
+                                variant={editingState.tintColor ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => {
+                                    if (editingState.tintColor) {
+                                        layerStore.setTintColor(undefined);
+                                    } else {
+                                        layerStore.setTintColor('#ffffff');
+                                    }
+                                }}
+                                className="flex-shrink-0"
+                            >
+                                {editingState.tintColor ? 'Remove' : 'Enable'}
+                            </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            {editingState.type === 'ascii'
+                                ? 'Apply a color tint to all non-empty cells'
+                                : 'Apply a color tint to the entire image'
+                            }
+                        </p>
                     </div>
                 )}
 

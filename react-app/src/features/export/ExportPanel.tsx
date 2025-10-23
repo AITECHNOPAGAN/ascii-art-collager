@@ -26,6 +26,7 @@ export const ExportPanel = observer(() => {
             resolution: canvasStore.resolution,
             parallaxEnabled: effectsStore.parallaxEnabled,
             includeGeneratorLink,
+            backgroundColor: canvasStore.backgroundColor,
         });
 
         if (htmlContent) {

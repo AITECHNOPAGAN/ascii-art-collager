@@ -4,6 +4,7 @@ import { getResolutionStyles } from '@/utils/htmlExporter';
 
 export class CanvasStore {
     resolution: Resolution = 'responsive';
+    backgroundColor: string = '#ffffff';
 
     constructor() {
         makeAutoObservable(this);
@@ -11,6 +12,10 @@ export class CanvasStore {
 
     setResolution = (resolution: Resolution) => {
         this.resolution = resolution;
+    };
+
+    setBackgroundColor = (color: string) => {
+        this.backgroundColor = color;
     };
 
     getContainerStyles = (): React.CSSProperties => {

@@ -7,7 +7,7 @@ interface ImageLayerProps {
 }
 
 export const ImageLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 } }: ImageLayerProps) => {
-    const { position, offsetX, offsetY, scale, zIndex, imageData, editedPixels } = layer;
+    const { position, offsetX, offsetY, scale, zIndex, imageData, editedPixels, tintColor } = layer;
 
     // Use edited pixels if available, otherwise use original image
     const displayImage = editedPixels || imageData;
@@ -56,13 +56,34 @@ export const ImageLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 } }: 
         ...(position === 'center' && { top: '50%', left: '50%' }),
     };
 
+    // Apply tint using CSS filter if tintColor is set
+    const imgStyle: React.CSSProperties = {
+        maxWidth: '100%',
+        maxHeight: '100%',
+        display: 'block',
+    };
+
     return (
         <div className="image-layer" style={style}>
             <img
                 src={displayImage}
-                style={{ maxWidth: '100%', maxHeight: '100%', display: 'block' }}
+                style={imgStyle}
                 alt="Layer content"
             />
+            {tintColor && tintColor !== '#ffffff' && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        backgroundColor: tintColor,
+                        mixBlendMode: 'multiply',
+                        pointerEvents: 'none',
+                    }}
+                />
+            )}
         </div>
     );
 });

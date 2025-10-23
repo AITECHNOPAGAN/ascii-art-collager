@@ -42,6 +42,7 @@
         "cmdk": "^1.0.0",
         "embla-carousel-react": "^8.3.0",
         "input-otp": "^1.2.4",
+        "localforage": "^1.10.0",
         "lucide-react": "^0.447.0",
         "mobx": "^6.13.1",
         "mobx-react-lite": "^4.0.7",

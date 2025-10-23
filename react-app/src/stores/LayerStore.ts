@@ -355,6 +355,18 @@ export class LayerStore {
         this.updateEditingState({ parallaxStrength });
     };
 
+    setTintColor = (tintColor: string | undefined) => {
+        if (!this.editingState) return;
+
+        if (this.editingState.type === 'ascii') {
+            this.editingState.tintColor = tintColor;
+            this.hasUnsavedChanges = true;
+        } else if (this.editingState.type === 'image') {
+            this.editingState.tintColor = tintColor;
+            this.hasUnsavedChanges = true;
+        }
+    };
+
     // Getters
     get activeLayer(): Layer | undefined {
         return this.layers.find(l => l.id === this.activeLayerId);

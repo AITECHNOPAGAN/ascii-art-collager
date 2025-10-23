@@ -41,6 +41,7 @@ export interface AsciiLayer extends BaseLayer {
     lattice: AsciiLattice;
     resolution: number;
     originalImage?: string; // data URL for re-conversion at different resolutions
+    tintColor?: string; // Optional tint color to apply to all non-empty cells
 }
 
 // Image Layer (pixel-based)
@@ -48,6 +49,7 @@ export interface ImageLayer extends BaseLayer {
     type: 'image';
     imageData: string; // data URL
     editedPixels?: string; // data URL of edited canvas
+    tintColor?: string; // Optional tint color to apply to the image
 }
 
 // Discriminated union for layers
@@ -69,6 +71,7 @@ export interface ProjectState {
     version: string;
     layers: Layer[];
     canvasResolution: Resolution;
+    canvasBackgroundColor?: string; // Optional for backwards compatibility
     customCSS?: string; // Custom CSS for class names
     metadata: {
         createdAt: string;
@@ -81,6 +84,7 @@ export interface ExportConfig {
     resolution: Resolution;
     parallaxEnabled: boolean;
     includeGeneratorLink: boolean;
+    backgroundColor?: string;
 }
 
 export interface ResolutionStyles {

@@ -1,14 +1,25 @@
 import { ProjectState } from '@/types';
 import { RootStore } from '@/stores';
+import localforage from 'localforage';
 
 const PROJECT_VERSION = '1.0.0';
-const LOCAL_STORAGE_KEY = 'ascii-art-project';
+const DB_KEY = 'ascii-art-project-autosave';
+
+// Configure localforage to use IndexedDB
+localforage.config({
+    driver: localforage.INDEXEDDB,
+    name: 'AsciiArtDB',
+    version: 1.0,
+    storeName: 'projects',
+    description: 'ASCII Art Project Storage'
+});
 
 export function serializeProject(rootStore: RootStore): ProjectState {
     return {
         version: PROJECT_VERSION,
         layers: rootStore.layerStore.layers,
         canvasResolution: rootStore.canvasStore.resolution,
+        canvasBackgroundColor: rootStore.canvasStore.backgroundColor,
         customCSS: rootStore.customStylesStore.customCSS,
         metadata: {
             createdAt: new Date().toISOString(),
@@ -18,10 +29,8 @@ export function serializeProject(rootStore: RootStore): ProjectState {
     };
 }
 
-export function deserializeProject(json: string): ProjectState {
+export function deserializeProject(data: any): ProjectState {
     try {
-        const data = JSON.parse(json);
-
         // Validate structure
         if (!data.version || !data.layers || !Array.isArray(data.layers)) {
             throw new Error('Invalid project format');
@@ -33,26 +42,48 @@ export function deserializeProject(json: string): ProjectState {
     }
 }
 
-export function saveToLocalStorage(rootStore: RootStore): void {
+/**
+ * Auto-save project to IndexedDB (asynchronous, non-blocking)
+ */
+export async function autoSaveProject(rootStore: RootStore): Promise<void> {
     try {
         const projectState = serializeProject(rootStore);
-        const json = JSON.stringify(projectState);
-        localStorage.setItem(LOCAL_STORAGE_KEY, json);
+        projectState.metadata.modifiedAt = new Date().toISOString();
+
+        // Convert to JSON and back to create a plain object (remove MobX observables)
+        const plainData = JSON.parse(JSON.stringify(projectState));
+
+        await localforage.setItem(DB_KEY, plainData);
+        console.log('Project auto-saved at', new Date().toLocaleTimeString());
     } catch (error) {
-        console.error('Failed to save to localStorage:', error);
-        throw error;
+        console.error('Failed to auto-save project:', error);
+        // Don't throw - auto-save should be silent
     }
 }
 
-export function loadFromLocalStorage(): ProjectState | null {
+/**
+ * Load project from IndexedDB (asynchronous)
+ */
+export async function loadAutoSavedProject(): Promise<ProjectState | null> {
     try {
-        const json = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (!json) return null;
+        const data = await localforage.getItem<ProjectState>(DB_KEY);
+        if (!data) return null;
 
-        return deserializeProject(json);
+        return deserializeProject(data);
     } catch (error) {
-        console.error('Failed to load from localStorage:', error);
+        console.error('Failed to load auto-saved project:', error);
         return null;
+    }
+}
+
+/**
+ * Clear auto-saved project from IndexedDB
+ */
+export async function clearAutoSavedProject(): Promise<void> {
+    try {
+        await localforage.removeItem(DB_KEY);
+    } catch (error) {
+        console.error('Failed to clear auto-saved project:', error);
     }
 }
 
@@ -85,7 +116,8 @@ export function loadProjectFile(file: File): Promise<ProjectState> {
         reader.onload = (e) => {
             try {
                 const json = e.target?.result as string;
-                const projectState = deserializeProject(json);
+                const data = JSON.parse(json);
+                const projectState = deserializeProject(data);
                 resolve(projectState);
             } catch (error) {
                 reject(error);
@@ -101,6 +133,11 @@ export function loadProjectIntoStores(projectState: ProjectState, rootStore: Roo
     try {
         // Load canvas settings
         rootStore.canvasStore.setResolution(projectState.canvasResolution);
+
+        // Load canvas background color (with default fallback for older projects)
+        if (projectState.canvasBackgroundColor !== undefined) {
+            rootStore.canvasStore.setBackgroundColor(projectState.canvasBackgroundColor);
+        }
 
         // Load layers
         rootStore.layerStore.loadFromJSON({

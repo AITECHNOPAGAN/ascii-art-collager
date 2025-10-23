@@ -2,23 +2,15 @@ import { observer } from 'mobx-react-lite';
 import { useStores } from '@/stores';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, Upload, Save } from 'lucide-react';
-import { downloadProjectFile, loadProjectFile, loadProjectIntoStores, saveToLocalStorage } from '@/utils/projectSerializer';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Download, Upload } from 'lucide-react';
+import { downloadProjectFile, loadProjectFile, loadProjectIntoStores } from '@/utils/projectSerializer';
 import { useRef } from 'react';
 
 export const ProjectControls = observer(() => {
     const stores = useStores();
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const handleSaveToLocalStorage = () => {
-        try {
-            saveToLocalStorage(stores);
-            alert('Project saved successfully!');
-        } catch (error) {
-            alert('Failed to save project');
-            console.error(error);
-        }
-    };
 
     const handleDownload = () => {
         try {
@@ -58,19 +50,26 @@ export const ProjectControls = observer(() => {
                 <CardTitle className="text-lg">Project</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-                <Button onClick={handleSaveToLocalStorage} className="w-full" variant="outline">
-                    <Save className="mr-2 h-4 w-4" />
-                    Save to Browser
-                </Button>
+                {/* Canvas Background Color */}
+                <div className="space-y-2 pb-2 border-b">
+                    <Label htmlFor="canvas-bg-color">Canvas Background</Label>
+                    <Input
+                        id="canvas-bg-color"
+                        type="color"
+                        value={stores.canvasStore.backgroundColor}
+                        onChange={(e) => stores.canvasStore.setBackgroundColor(e.target.value)}
+                        className="h-10 cursor-pointer"
+                    />
+                </div>
 
                 <Button onClick={handleDownload} className="w-full" variant="outline">
-                    <Download className="mr-2 h-4 w-4" />
-                    Download Project
+                    <Upload className="mr-2 h-4 w-4" />
+                    Export Project
                 </Button>
 
                 <Button onClick={() => fileInputRef.current?.click()} className="w-full" variant="outline">
-                    <Upload className="mr-2 h-4 w-4" />
-                    Load Project
+                    <Download className="mr-2 h-4 w-4" />
+                    Import Project
                 </Button>
 
                 <input
@@ -80,6 +79,10 @@ export const ProjectControls = observer(() => {
                     onChange={handleFileSelect}
                     style={{ display: 'none' }}
                 />
+
+                <p className="text-xs text-muted-foreground text-center pt-2">
+                    Your project auto-saves every minute
+                </p>
             </CardContent>
         </Card>
     );
