@@ -300,7 +300,7 @@ export const EditableImageLayer = observer(({ layer, parallaxOffset = { x: 0, y:
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: isActive && isInteractive ? 9999 : zIndex, // Boost z-index when actively editing
+        zIndex, // Keep original z-index for consistent layer ordering
         transformOrigin,
         transform,
         cursor: isMoveMode ? (isDragging ? 'grabbing' : 'grab') : (isInteractive ? 'none' : 'default'),

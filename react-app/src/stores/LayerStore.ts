@@ -385,6 +385,21 @@ export class LayerStore {
         }
     };
 
+    reorderLayers = (oldIndex: number, newIndex: number) => {
+        if (oldIndex === newIndex) return;
+
+        const newLayers = [...this.layers];
+        const [movedLayer] = newLayers.splice(oldIndex, 1);
+        newLayers.splice(newIndex, 0, movedLayer);
+
+        // Update zIndex values to match new order
+        newLayers.forEach((layer, idx) => {
+            layer.zIndex = idx + 2;
+        });
+
+        this.layers = newLayers;
+    };
+
     // Editing state updates
     updateEditingState = (updates: Partial<Layer>) => {
         if (!this.editingState) return;
@@ -426,6 +441,31 @@ export class LayerStore {
             this.editingState.tintColor = tintColor;
             this.hasUnsavedChanges = true;
         }
+    };
+
+    // Apply color to all non-empty cells in the ASCII layer
+    applyColorToAllCells = (layerId: number, textColor: string, bgColor?: string, alpha?: number) => {
+        if (this.editingState?.id !== layerId || this.editingState.type !== 'ascii') return;
+
+        const updates: Partial<CharacterCell> = { textColor };
+        if (bgColor !== undefined) updates.bgColor = bgColor;
+        if (alpha !== undefined) updates.alpha = alpha;
+
+        // Update all non-empty cells
+        for (let y = 0; y < this.editingState.lattice.height; y++) {
+            for (let x = 0; x < this.editingState.lattice.width; x++) {
+                const cell = this.editingState.lattice.cells[y][x];
+                // Only update non-empty cells
+                if (cell.char !== ' ' && cell.char !== '') {
+                    this.editingState.lattice.cells[y][x] = {
+                        ...cell,
+                        ...updates
+                    };
+                }
+            }
+        }
+
+        this.hasUnsavedChanges = true;
     };
 
     // Getters

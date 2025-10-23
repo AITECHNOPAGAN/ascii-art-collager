@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { MousePointer, Move, Eraser, Paintbrush, Droplet, Pipette, Code } from 'lucide-react';
+import { MousePointer, Move, Eraser, Paintbrush, Droplet, Pipette, Code, Brush } from 'lucide-react';
 import { AsciiEditorDialog } from './AsciiEditorDialog';
 
 export const EditingToolbar = observer(() => {
@@ -146,24 +146,52 @@ export const EditingToolbar = observer(() => {
                         </div>
 
                         {isAsciiLayer && (
-                            <div className="space-y-2">
-                                <Label htmlFor="bg-color-picker">Background Color</Label>
-                                <Input
-                                    id="bg-color-picker"
-                                    type="color"
-                                    value={brushSettings.currentBgColor === 'transparent' ? '#ffffff' : brushSettings.currentBgColor}
-                                    onChange={(e) => editingStore.setCurrentBgColor(e.target.value)}
-                                    className="h-10 cursor-pointer"
-                                />
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => editingStore.setCurrentBgColor('transparent')}
-                                    className="w-full"
-                                >
-                                    Transparent BG
-                                </Button>
-                            </div>
+                            <>
+                                <div className="space-y-2">
+                                    <Label htmlFor="bg-color-picker">Background Color</Label>
+                                    <Input
+                                        id="bg-color-picker"
+                                        type="color"
+                                        value={brushSettings.currentBgColor === 'transparent' ? '#ffffff' : brushSettings.currentBgColor}
+                                        onChange={(e) => editingStore.setCurrentBgColor(e.target.value)}
+                                        className="h-10 cursor-pointer"
+                                    />
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => editingStore.setCurrentBgColor('transparent')}
+                                        className="w-full"
+                                    >
+                                        Transparent BG
+                                    </Button>
+                                </div>
+
+                                {/* Apply Color to Entire Image */}
+                                <div className="space-y-2 pt-2 border-t">
+                                    <Button
+                                        variant="default"
+                                        size="sm"
+                                        onClick={() => {
+                                            if (activeLayer && activeLayer.type === 'ascii') {
+                                                layerStore.applyColorToAllCells(
+                                                    activeLayer.id,
+                                                    brushSettings.currentTextColor,
+                                                    brushSettings.currentBgColor,
+                                                    brushSettings.currentAlpha
+                                                );
+                                            }
+                                        }}
+                                        className="w-full"
+                                        title="Apply current colors to all ASCII characters"
+                                    >
+                                        <Brush className="mr-2 h-4 w-4" />
+                                        Apply Color to All
+                                    </Button>
+                                    <p className="text-xs text-muted-foreground">
+                                        Paint all ASCII characters with the current colors
+                                    </p>
+                                </div>
+                            </>
                         )}
                     </>
                 )}

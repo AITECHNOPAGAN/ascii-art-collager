@@ -44,9 +44,10 @@ const applyTintColor = (originalColor: string, tintColor: string): string => {
 interface AsciiLayerProps {
     layer: AsciiLayerType;
     parallaxOffset?: { x: number; y: number };
+    disablePointerEvents?: boolean;
 }
 
-export const AsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 } }: AsciiLayerProps) => {
+export const AsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 }, disablePointerEvents = false }: AsciiLayerProps) => {
     const { position, offsetX, offsetY, scale, fontSize, zIndex, lattice } = layer;
 
     if (!lattice || lattice.cells.length === 0) return null;
@@ -89,6 +90,7 @@ export const AsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 } }: 
         whiteSpace: 'pre',
         letterSpacing: 0,
         wordSpacing: 0,
+        pointerEvents: disablePointerEvents ? 'none' : 'auto',
         ...(position === 'top-left' && { top: 0, left: 0 }),
         ...(position === 'top-right' && { top: 0, right: 0 }),
         ...(position === 'bottom-left' && { bottom: 0, left: 0 }),

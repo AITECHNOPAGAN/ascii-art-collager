@@ -4,9 +4,10 @@ import { ImageLayer as ImageLayerType } from '@/types';
 interface ImageLayerProps {
     layer: ImageLayerType;
     parallaxOffset?: { x: number; y: number };
+    disablePointerEvents?: boolean;
 }
 
-export const ImageLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 } }: ImageLayerProps) => {
+export const ImageLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 }, disablePointerEvents = false }: ImageLayerProps) => {
     const { position, offsetX, offsetY, scale, zIndex, imageData, editedPixels, tintColor } = layer;
 
     // Use edited pixels if available, otherwise use original image
@@ -49,6 +50,7 @@ export const ImageLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 } }: 
         zIndex,
         transformOrigin,
         transform,
+        pointerEvents: disablePointerEvents ? 'none' : 'auto',
         ...(position === 'top-left' && { top: 0, left: 0 }),
         ...(position === 'top-right' && { top: 0, right: 0 }),
         ...(position === 'bottom-left' && { bottom: 0, left: 0 }),

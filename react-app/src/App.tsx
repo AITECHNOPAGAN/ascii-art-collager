@@ -5,7 +5,7 @@ import { CanvasContainer } from './features/canvas';
 import { EffectsPanel } from './features/effects';
 import { ExportPanel } from './features/export';
 import { ProjectControls } from './features/project';
-import { EditingToolbar } from './features/editing';
+import { EditingFooter } from './features/editing';
 import { CustomStylesPanel } from './features/styles';
 import { autoSaveProject, loadAutoSavedProject, loadProjectIntoStores } from './utils/projectSerializer';
 
@@ -74,8 +74,6 @@ function App() {
 
                     <LayerControls />
 
-                    <EditingToolbar />
-
                     <CustomStylesPanel />
 
                     <EffectsPanel />
@@ -84,9 +82,12 @@ function App() {
                 </div>
 
                 {/* Main Canvas Area */}
-                <div className="flex-1 p-6">
+                <div className="flex-1 p-6 pb-20">
                     <CanvasContainer />
                 </div>
+
+                {/* Editing Footer */}
+                <EditingFooter />
             </div>
         </StoreProvider>
     );

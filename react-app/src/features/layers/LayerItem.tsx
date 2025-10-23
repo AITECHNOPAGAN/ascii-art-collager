@@ -1,17 +1,32 @@
 import { observer } from 'mobx-react-lite';
 import { useLayerStore } from '@/stores';
-import { Eye, EyeOff, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, GripVertical, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface LayerItemProps {
     layerId: number;
-    index: number;
-    totalLayers: number;
 }
 
-export const LayerItem = observer(({ layerId, index, totalLayers }: LayerItemProps) => {
+export const LayerItem = observer(({ layerId }: LayerItemProps) => {
     const layerStore = useLayerStore();
     const layer = layerStore.layers.find(l => l.id === layerId);
+
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: layerId });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+    };
 
     if (!layer) return null;
 
@@ -48,16 +63,28 @@ export const LayerItem = observer(({ layerId, index, totalLayers }: LayerItemPro
 
     return (
         <div
+            ref={setNodeRef}
+            style={style}
             className={`
-        bg-secondary/50 border-1 p-3 cursor-pointer transition-all
-        ${isActive ? 'border-primary bg-primary/10 shadow-lg' : 'border-border hover:border-border/60 hover:bg-secondary/70'}
+        bg-secondary/50 border-2 p-3 cursor-pointer transition-all rounded-none
+        ${isActive ? 'border-orange-500 bg-orange-500/10 shadow-lg shadow-orange-500/20' : 'border-border hover:border-border/60 hover:bg-secondary/70'}
       `}
             onClick={() => layerStore.setActiveLayer(layerId)}
         >
             <div className="flex justify-between items-center gap-2">
-                <span className="text-sm font-bold flex-1">
-                    {layer.name}{unsavedIndicator}
-                </span>
+                <div className="flex items-center gap-2 flex-1">
+                    <div
+                        className="cursor-grab active:cursor-grabbing touch-none"
+                        {...attributes}
+                        {...listeners}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <GripVertical className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <span className="text-sm font-bold flex-1">
+                        {layer.name}{unsavedIndicator}
+                    </span>
+                </div>
                 <div className="flex gap-1">
                     <Button
                         variant="ghost"
@@ -70,32 +97,6 @@ export const LayerItem = observer(({ layerId, index, totalLayers }: LayerItemPro
                         title="Toggle visibility"
                     >
                         {layer.visibility ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            layerStore.moveLayerUp(layerId);
-                        }}
-                        disabled={index === totalLayers - 1}
-                        title="Move up"
-                    >
-                        <ChevronUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            layerStore.moveLayerDown(layerId);
-                        }}
-                        disabled={index === 0}
-                        title="Move down"
-                    >
-                        <ChevronDown className="h-4 w-4" />
                     </Button>
                     <Button
                         variant="ghost"

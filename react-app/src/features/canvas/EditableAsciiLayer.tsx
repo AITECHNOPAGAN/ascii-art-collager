@@ -262,7 +262,7 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
     const containerStyle: React.CSSProperties = {
         position: 'absolute',
         transition: isDragging ? 'none' : 'transform 0.05s ease-out',
-        zIndex: isActive && isInteractive ? 9999 : zIndex, // Boost z-index when actively editing
+        zIndex, // Keep original z-index for consistent layer ordering
         transformOrigin,
         transform,
         fontFamily: "'Courier New', monospace",

@@ -5,9 +5,46 @@ import { UnsavedChangesDialog } from './UnsavedChangesDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Image as ImageIcon } from 'lucide-react';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 
 export const LayerPanel = observer(() => {
     const layerStore = useLayerStore();
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (over && active.id !== over.id) {
+            const oldIndex = layerStore.layers.findIndex(l => l.id === active.id);
+            const newIndex = layerStore.layers.findIndex(l => l.id === over.id);
+
+            if (oldIndex !== -1 && newIndex !== -1) {
+                layerStore.reorderLayers(oldIndex, newIndex);
+            }
+        }
+    };
+
+    // Prepare layers for display - reverse order so top layers appear first
+    const displayLayers = [...layerStore.layers].reverse();
 
     return (
         <>
@@ -32,14 +69,24 @@ export const LayerPanel = observer(() => {
                                 No layers yet. Click a button to create one!
                             </div>
                         ) : (
-                            layerStore.layers.map((layer, index) => (
-                                <LayerItem
-                                    key={layer.id}
-                                    layerId={layer.id}
-                                    index={index}
-                                    totalLayers={layerStore.layers.length}
-                                />
-                            ))
+                            <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={handleDragEnd}
+                            >
+                                <SortableContext
+                                    items={displayLayers.map(l => l.id)}
+                                    strategy={verticalListSortingStrategy}
+                                >
+                                    {/* Show layers in reverse order (top layers first in UI) */}
+                                    {displayLayers.map((layer) => (
+                                        <LayerItem
+                                            key={layer.id}
+                                            layerId={layer.id}
+                                        />
+                                    ))}
+                                </SortableContext>
+                            </DndContext>
                         )}
                     </div>
                 </CardContent>
