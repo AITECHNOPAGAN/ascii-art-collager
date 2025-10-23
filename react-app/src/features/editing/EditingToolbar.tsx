@@ -1,4 +1,5 @@
 import { observer } from 'mobx-react-lite';
+import { useState } from 'react';
 import { useEditingStore, useLayerStore } from '@/stores';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,14 +7,16 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { MousePointer, Eraser, Paintbrush, Droplet, Pipette, Type, Code } from 'lucide-react';
+import { MousePointer, Eraser, Paintbrush, Droplet, Pipette, Code } from 'lucide-react';
+import { AsciiEditorDialog } from './AsciiEditorDialog';
 
 export const EditingToolbar = observer(() => {
     const editingStore = useEditingStore();
     const layerStore = useLayerStore();
+    const [showEditorDialog, setShowEditorDialog] = useState(false);
 
     const activeLayer = layerStore.activeLayer;
-    const { activeTool, brushSettings, isTextEditMode, isHtmlEditMode } = editingStore;
+    const { activeTool, brushSettings } = editingStore;
 
     if (!activeLayer) {
         return (
@@ -44,165 +47,156 @@ export const EditingToolbar = observer(() => {
                 </div>
             </CardHeader>
             <CardContent className="space-y-4">
-                {/* Text Edit Mode for ASCII layers */}
+                {/* Text/HTML Edit Button for ASCII layers */}
                 {isAsciiLayer && (
                     <div className="space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
-                            <Button
-                                onClick={() => editingStore.setIsTextEditMode(!isTextEditMode)}
-                                variant={isTextEditMode ? 'default' : 'outline'}
-                                className="w-full"
-                            >
-                                <Type className="mr-2 h-4 w-4" />
-                                {isTextEditMode ? 'Exit Text' : 'Edit Text'}
-                            </Button>
-                            <Button
-                                onClick={() => editingStore.setIsHtmlEditMode(!isHtmlEditMode)}
-                                variant={isHtmlEditMode ? 'default' : 'outline'}
-                                className="w-full"
-                            >
-                                <Code className="mr-2 h-4 w-4" />
-                                {isHtmlEditMode ? 'Exit HTML' : 'Edit HTML'}
-                            </Button>
-                        </div>
+                        <Button
+                            onClick={() => setShowEditorDialog(true)}
+                            variant="outline"
+                            className="w-full"
+                        >
+                            <Code className="mr-2 h-4 w-4" />
+                            Edit ASCII / HTML
+                        </Button>
                     </div>
                 )}
 
                 {/* Tool Selector */}
-                {!isTextEditMode && !isHtmlEditMode && (
+                <div className="space-y-2">
+                    <Label>Tool</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                        <Button
+                            variant={activeTool === 'select' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => editingStore.setActiveTool('select')}
+                            title="Select (no editing)"
+                        >
+                            <MousePointer className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant={activeTool === 'erase' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => editingStore.setActiveTool('erase')}
+                            title="Erase"
+                        >
+                            <Eraser className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant={activeTool === 'paint-color' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => editingStore.setActiveTool('paint-color')}
+                            title="Paint Color"
+                        >
+                            <Paintbrush className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant={activeTool === 'paint-alpha' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => editingStore.setActiveTool('paint-alpha')}
+                            title="Paint Alpha"
+                        >
+                            <Droplet className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant={activeTool === 'color-picker' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => editingStore.setActiveTool('color-picker')}
+                            title="Color Picker"
+                        >
+                            <Pipette className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Brush Radius */}
+                {(activeTool === 'erase' || activeTool === 'paint-color' || activeTool === 'paint-alpha') && (
+                    <div className="space-y-2">
+                        <Label>Brush Radius: {brushSettings.radius}</Label>
+                        <Slider
+                            value={[brushSettings.radius]}
+                            onValueChange={([value]: number[]) => editingStore.setBrushRadius(value)}
+                            min={1}
+                            max={maxBrushRadius}
+                            step={1}
+                        />
+                    </div>
+                )}
+
+                {/* Color Pickers */}
+                {(activeTool === 'paint-color' || activeTool === 'color-picker') && (
                     <>
                         <div className="space-y-2">
-                            <Label>Tool</Label>
-                            <div className="grid grid-cols-3 gap-2">
-                                <Button
-                                    variant={activeTool === 'select' ? 'default' : 'outline'}
-                                    size="sm"
-                                    onClick={() => editingStore.setActiveTool('select')}
-                                    title="Select (no editing)"
-                                >
-                                    <MousePointer className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant={activeTool === 'erase' ? 'default' : 'outline'}
-                                    size="sm"
-                                    onClick={() => editingStore.setActiveTool('erase')}
-                                    title="Erase"
-                                >
-                                    <Eraser className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant={activeTool === 'paint-color' ? 'default' : 'outline'}
-                                    size="sm"
-                                    onClick={() => editingStore.setActiveTool('paint-color')}
-                                    title="Paint Color"
-                                >
-                                    <Paintbrush className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant={activeTool === 'paint-alpha' ? 'default' : 'outline'}
-                                    size="sm"
-                                    onClick={() => editingStore.setActiveTool('paint-alpha')}
-                                    title="Paint Alpha"
-                                >
-                                    <Droplet className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant={activeTool === 'color-picker' ? 'default' : 'outline'}
-                                    size="sm"
-                                    onClick={() => editingStore.setActiveTool('color-picker')}
-                                    title="Color Picker"
-                                >
-                                    <Pipette className="h-4 w-4" />
-                                </Button>
-                            </div>
+                            <Label htmlFor="text-color-picker">Text Color</Label>
+                            <Input
+                                id="text-color-picker"
+                                type="color"
+                                value={brushSettings.currentTextColor}
+                                onChange={(e) => editingStore.setCurrentTextColor(e.target.value)}
+                                className="h-10 cursor-pointer"
+                            />
                         </div>
 
-                        {/* Brush Radius */}
-                        {(activeTool === 'erase' || activeTool === 'paint-color' || activeTool === 'paint-alpha') && (
+                        {isAsciiLayer && (
                             <div className="space-y-2">
-                                <Label>Brush Radius: {brushSettings.radius}</Label>
-                                <Slider
-                                    value={[brushSettings.radius]}
-                                    onValueChange={([value]: number[]) => editingStore.setBrushRadius(value)}
-                                    min={1}
-                                    max={maxBrushRadius}
-                                    step={1}
+                                <Label htmlFor="bg-color-picker">Background Color</Label>
+                                <Input
+                                    id="bg-color-picker"
+                                    type="color"
+                                    value={brushSettings.currentBgColor === 'transparent' ? '#ffffff' : brushSettings.currentBgColor}
+                                    onChange={(e) => editingStore.setCurrentBgColor(e.target.value)}
+                                    className="h-10 cursor-pointer"
                                 />
-                            </div>
-                        )}
-
-                        {/* Color Pickers */}
-                        {(activeTool === 'paint-color' || activeTool === 'color-picker') && (
-                            <>
-                                <div className="space-y-2">
-                                    <Label htmlFor="text-color-picker">Text Color</Label>
-                                    <Input
-                                        id="text-color-picker"
-                                        type="color"
-                                        value={brushSettings.currentTextColor}
-                                        onChange={(e) => editingStore.setCurrentTextColor(e.target.value)}
-                                        className="h-10 cursor-pointer"
-                                    />
-                                </div>
-
-                                {isAsciiLayer && (
-                                    <div className="space-y-2">
-                                        <Label htmlFor="bg-color-picker">Background Color</Label>
-                                        <Input
-                                            id="bg-color-picker"
-                                            type="color"
-                                            value={brushSettings.currentBgColor === 'transparent' ? '#ffffff' : brushSettings.currentBgColor}
-                                            onChange={(e) => editingStore.setCurrentBgColor(e.target.value)}
-                                            className="h-10 cursor-pointer"
-                                        />
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => editingStore.setCurrentBgColor('transparent')}
-                                            className="w-full"
-                                        >
-                                            Transparent BG
-                                        </Button>
-                                    </div>
-                                )}
-                            </>
-                        )}
-
-                        {/* Alpha Slider */}
-                        {(activeTool === 'paint-alpha' || activeTool === 'paint-color') && (
-                            <div className="space-y-2">
-                                <Label>Alpha: {brushSettings.currentAlpha.toFixed(2)}</Label>
-                                <Slider
-                                    value={[brushSettings.currentAlpha]}
-                                    onValueChange={([value]: number[]) => editingStore.setCurrentAlpha(value)}
-                                    min={0}
-                                    max={1}
-                                    step={0.05}
-                                />
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => editingStore.setCurrentBgColor('transparent')}
+                                    className="w-full"
+                                >
+                                    Transparent BG
+                                </Button>
                             </div>
                         )}
                     </>
                 )}
 
+                {/* Alpha Slider */}
+                {(activeTool === 'paint-alpha' || activeTool === 'paint-color') && (
+                    <div className="space-y-2">
+                        <Label>Alpha: {brushSettings.currentAlpha.toFixed(2)}</Label>
+                        <Slider
+                            value={[brushSettings.currentAlpha]}
+                            onValueChange={([value]: number[]) => editingStore.setCurrentAlpha(value)}
+                            min={0}
+                            max={1}
+                            step={0.05}
+                        />
+                    </div>
+                )}
+
                 {/* Current Tool Info */}
                 <div className="pt-2 border-t">
                     <p className="text-xs text-muted-foreground">
-                        {isTextEditMode
-                            ? 'Editing layer as plain text'
-                            : isHtmlEditMode
-                                ? 'Editing layer as HTML (with classes & styles)'
-                                : activeTool === 'select'
-                                    ? 'No tool selected'
-                                    : activeTool === 'erase'
-                                        ? 'Click and drag to erase'
-                                        : activeTool === 'paint-color'
-                                            ? 'Click and drag to paint color'
-                                            : activeTool === 'paint-alpha'
-                                                ? 'Click and drag to adjust transparency'
-                                                : 'Click to pick a color'
+                        {activeTool === 'select'
+                            ? 'No tool selected'
+                            : activeTool === 'erase'
+                                ? 'Click and drag to erase'
+                                : activeTool === 'paint-color'
+                                    ? 'Click and drag to paint color'
+                                    : activeTool === 'paint-alpha'
+                                        ? 'Click and drag to adjust transparency'
+                                        : 'Click to pick a color'
                         }
                     </p>
                 </div>
+
+                {/* ASCII Editor Dialog */}
+                {isAsciiLayer && activeLayer.type === 'ascii' && (
+                    <AsciiEditorDialog
+                        layer={activeLayer}
+                        open={showEditorDialog}
+                        onClose={() => setShowEditorDialog(false)}
+                    />
+                )}
             </CardContent>
         </Card>
     );

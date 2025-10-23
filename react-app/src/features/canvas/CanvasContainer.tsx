@@ -57,7 +57,7 @@ export const CanvasContainer = observer(() => {
                 } : { x: 0, y: 0 };
 
                 const isActive = layerStore.activeLayerId === layer.id;
-                const isEditMode = editingStore.activeTool !== 'select' || editingStore.isTextEditMode || editingStore.isHtmlEditMode;
+                const isEditMode = editingStore.activeTool !== 'select';
 
                 // Render editable layer if active and in edit mode
                 if (isActive && isEditMode) {

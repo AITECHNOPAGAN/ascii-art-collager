@@ -11,8 +11,6 @@ export class EditingStore {
         currentAlpha: 1,
     };
     isEditing = false;
-    isTextEditMode = false; // For ASCII text editing
-    isHtmlEditMode = false; // For ASCII HTML editing
 
     constructor() {
         makeAutoObservable(this);
@@ -20,11 +18,6 @@ export class EditingStore {
 
     setActiveTool = (tool: EditingTool) => {
         this.activeTool = tool;
-        // Exit edit modes when switching tools
-        if (tool !== 'select') {
-            this.isTextEditMode = false;
-            this.isHtmlEditMode = false;
-        }
     };
 
     setBrushRadius = (radius: number) => {
@@ -49,22 +42,6 @@ export class EditingStore {
 
     setIsEditing = (isEditing: boolean) => {
         this.isEditing = isEditing;
-    };
-
-    setIsTextEditMode = (isTextEditMode: boolean) => {
-        this.isTextEditMode = isTextEditMode;
-        if (isTextEditMode) {
-            this.activeTool = 'select';
-            this.isHtmlEditMode = false; // Disable HTML mode when text mode is enabled
-        }
-    };
-
-    setIsHtmlEditMode = (isHtmlEditMode: boolean) => {
-        this.isHtmlEditMode = isHtmlEditMode;
-        if (isHtmlEditMode) {
-            this.activeTool = 'select';
-            this.isTextEditMode = false; // Disable text mode when HTML mode is enabled
-        }
     };
 
     get isDrawingTool(): boolean {
