@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { MousePointer, Eraser, Paintbrush, Droplet, Pipette, Code } from 'lucide-react';
+import { MousePointer, Move, Eraser, Paintbrush, Droplet, Pipette, Code } from 'lucide-react';
 import { AsciiEditorDialog } from './AsciiEditorDialog';
 
 export const EditingToolbar = observer(() => {
@@ -73,6 +73,14 @@ export const EditingToolbar = observer(() => {
                             title="Select (no editing)"
                         >
                             <MousePointer className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant={activeTool === 'move' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => editingStore.setActiveTool('move')}
+                            title="Move (drag to reposition)"
+                        >
+                            <Move className="h-4 w-4" />
                         </Button>
                         <Button
                             variant={activeTool === 'erase' ? 'default' : 'outline'}
@@ -218,13 +226,15 @@ export const EditingToolbar = observer(() => {
                     <p className="text-xs text-muted-foreground">
                         {activeTool === 'select'
                             ? 'No tool selected'
-                            : activeTool === 'erase'
-                                ? 'Click and drag to erase'
-                                : activeTool === 'paint-color'
-                                    ? 'Click and drag to paint color'
-                                    : activeTool === 'paint-alpha'
-                                        ? 'Click and drag to adjust transparency'
-                                        : 'Click to pick a color'
+                            : activeTool === 'move'
+                                ? 'Click and drag to move the layer'
+                                : activeTool === 'erase'
+                                    ? 'Click and drag to erase'
+                                    : activeTool === 'paint-color'
+                                        ? 'Click and drag to paint color'
+                                        : activeTool === 'paint-alpha'
+                                            ? 'Click and drag to adjust transparency'
+                                            : 'Click to pick a color'
                         }
                     </p>
                 </div>

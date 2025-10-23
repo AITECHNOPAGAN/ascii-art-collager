@@ -56,7 +56,7 @@ export interface ImageLayer extends BaseLayer {
 export type Layer = AsciiLayer | ImageLayer;
 
 // Editing Tools
-export type EditingTool = 'select' | 'erase' | 'paint-color' | 'paint-alpha' | 'color-picker';
+export type EditingTool = 'select' | 'move' | 'erase' | 'paint-color' | 'paint-alpha' | 'color-picker';
 
 export interface BrushSettings {
     radius: number;

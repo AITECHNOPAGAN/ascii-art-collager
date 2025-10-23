@@ -145,28 +145,15 @@ export const LayerControls = observer(() => {
                     </Select>
                 </div>
 
-                {/* Offset X */}
+                {/* Offset Position (read-only display) */}
                 <div className="space-y-2">
-                    <Label>Offset X: {editingState.offsetX}px</Label>
-                    <Slider
-                        value={[editingState.offsetX]}
-                        onValueChange={([value]: number[]) => layerStore.setOffsetX(value)}
-                        min={-500}
-                        max={500}
-                        step={10}
-                    />
-                </div>
-
-                {/* Offset Y */}
-                <div className="space-y-2">
-                    <Label>Offset Y: {editingState.offsetY}px</Label>
-                    <Slider
-                        value={[editingState.offsetY]}
-                        onValueChange={([value]: number[]) => layerStore.setOffsetY(value)}
-                        min={-500}
-                        max={500}
-                        step={10}
-                    />
+                    <Label>Offset Position</Label>
+                    <div className="text-sm text-muted-foreground px-3 py-2 border rounded-md bg-muted/50">
+                        X: {editingState.offsetX}px, Y: {editingState.offsetY}px
+                    </div>
+                    <p className="text-xs text-muted-foreground italic">
+                        Use the Move tool to reposition by dragging on the canvas
+                    </p>
                 </div>
 
                 {/* Scale */}

@@ -59,7 +59,7 @@ export const CanvasContainer = observer(() => {
                 const isActive = layerStore.activeLayerId === layer.id;
                 const isEditMode = editingStore.activeTool !== 'select';
 
-                // Render editable layer if active and in edit mode
+                // Render editable layer if active and in edit mode (including move tool)
                 if (isActive && isEditMode) {
                     if (layerData.type === 'image') {
                         return <EditableImageLayer key={layer.id} layer={layerData} parallaxOffset={parallaxOffset} />;

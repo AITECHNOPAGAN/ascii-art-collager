@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Download, Upload } from 'lucide-react';
+import { Download, Upload, RotateCcw } from 'lucide-react';
 import { downloadProjectFile, loadProjectFile, loadProjectIntoStores } from '@/utils/projectSerializer';
 import { useRef } from 'react';
 
@@ -42,6 +42,11 @@ export const ProjectControls = observer(() => {
         }
 
         e.target.value = '';
+    };
+
+    const handleResetAutoSave = () => {
+        stores.layerStore.resetAutoSavePreference();
+        alert('Auto-save preference has been reset. You will be prompted again when switching layers with unsaved changes.');
     };
 
     return (
@@ -83,6 +88,21 @@ export const ProjectControls = observer(() => {
                 <p className="text-xs text-muted-foreground text-center pt-2">
                     Your project auto-saves every minute
                 </p>
+
+                <div className="space-y-2 pt-4 border-t">
+                    <Label>Layer Auto-Save</Label>
+                    <Button
+                        onClick={handleResetAutoSave}
+                        variant="outline"
+                        className="w-full"
+                    >
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                        Reset Auto-Save Preference
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                        Reset your saved preference for handling unsaved layer changes.
+                    </p>
+                </div>
             </CardContent>
         </Card>
     );

@@ -54,6 +54,8 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
     const containerRef = useRef<HTMLDivElement>(null);
     const [isDrawing, setIsDrawing] = useState(false);
     const [cursorPos, setCursorPos] = useState<{ x: number, y: number } | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragStart, setDragStart] = useState<{ x: number, y: number, offsetX: number, offsetY: number } | null>(null);
 
     const { activeTool, brushSettings } = editingStore;
     const isActive = layerStore.activeLayerId === layer.id;
@@ -110,6 +112,21 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
     const handleMouseDown = (e: React.MouseEvent) => {
         if (!isActive || activeTool === 'select') return;
 
+        // Handle move tool
+        if (activeTool === 'move') {
+            e.preventDefault(); // Prevent text selection during drag
+            setIsDragging(true);
+            // Capture the current editing state offsets at drag start
+            const currentLayer = layerStore.editingState || layer;
+            setDragStart({
+                x: e.clientX,
+                y: e.clientY,
+                offsetX: currentLayer.offsetX,
+                offsetY: currentLayer.offsetY
+            });
+            return;
+        }
+
         const coords = getGridCoords(e);
         if (!coords) return;
 
@@ -128,10 +145,21 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
+        // Handle drag for move tool
+        if (isDragging && activeTool === 'move' && dragStart) {
+            const deltaX = e.clientX - dragStart.x;
+            const deltaY = e.clientY - dragStart.y;
+
+            // Calculate new offset relative to the original starting position
+            layerStore.setOffsetX(dragStart.offsetX + deltaX);
+            layerStore.setOffsetY(dragStart.offsetY + deltaY);
+            return;
+        }
+
         const coords = getGridCoords(e);
         setCursorPos(coords);
 
-        if (!isActive || !isDrawing || activeTool === 'select' || activeTool === 'color-picker') return;
+        if (!isActive || !isDrawing || activeTool === 'select' || activeTool === 'color-picker' || activeTool === 'move') return;
 
         if (coords) {
             applyBrush(coords.x, coords.y);
@@ -139,6 +167,13 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
     };
 
     const handleMouseUp = () => {
+        if (isDragging && activeTool === 'move') {
+            setIsDragging(false);
+            setDragStart(null);
+            layerStore.saveCurrentLayer();
+            return;
+        }
+
         if (isDrawing) {
             setIsDrawing(false);
             layerStore.saveCurrentLayer();
@@ -147,6 +182,10 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
 
     const handleMouseLeave = () => {
         setCursorPos(null);
+        if (isDragging && activeTool === 'move') {
+            setIsDragging(false);
+            setDragStart(null);
+        }
         if (isDrawing) {
             setIsDrawing(false);
             layerStore.saveCurrentLayer();
@@ -155,7 +194,7 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
 
     // Render cursor preview
     const renderCursorPreview = () => {
-        if (!cursorPos || !isActive || activeTool === 'select' || !containerRef.current) return null;
+        if (!cursorPos || !isActive || activeTool === 'select' || activeTool === 'move' || !containerRef.current) return null;
 
         const rect = containerRef.current.getBoundingClientRect();
 
@@ -194,6 +233,7 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
     };
 
     const isInteractive = isActive && activeTool !== 'select';
+    const isMoveMode = isActive && activeTool === 'move';
 
     // When interactive, we need to render the layer ourselves with proper event handlers
     // instead of wrapping the AsciiLayer component
@@ -221,26 +261,26 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
 
     const containerStyle: React.CSSProperties = {
         position: 'absolute',
-        transition: 'transform 0.05s ease-out',
-        zIndex,
+        transition: isDragging ? 'none' : 'transform 0.05s ease-out',
+        zIndex: isActive && isInteractive ? 9999 : zIndex, // Boost z-index when actively editing
         transformOrigin,
         transform,
-        cursor: isInteractive ? 'none' : 'default',
+        fontFamily: "'Courier New', monospace",
+        fontSize: `${fontSize}px`,
+        lineHeight: 1,
+        whiteSpace: 'pre',
+        letterSpacing: 0,
+        wordSpacing: 0,
+        cursor: isMoveMode ? (isDragging ? 'grabbing' : 'grab') : (isInteractive ? 'none' : 'default'),
+        userSelect: 'none', // Prevent text selection
+        WebkitUserSelect: 'none', // Safari
+        MozUserSelect: 'none', // Firefox
+        msUserSelect: 'none', // IE/Edge
         ...(position === 'top-left' && { top: 0, left: 0 }),
         ...(position === 'top-right' && { top: 0, right: 0 }),
         ...(position === 'bottom-left' && { bottom: 0, left: 0 }),
         ...(position === 'bottom-right' && { bottom: 0, right: 0 }),
         ...(position === 'center' && { top: '50%', left: '50%' }),
-    };
-
-    const gridStyle: React.CSSProperties = {
-        display: 'grid',
-        gridTemplateColumns: `repeat(${lattice.width}, ${fontSize}px)`,
-        gridTemplateRows: `repeat(${lattice.height}, ${fontSize}px)`,
-        gap: 0,
-        lineHeight: 1,
-        fontFamily: "'Courier New', monospace",
-        fontSize: `${fontSize}px`,
     };
 
     return (
@@ -253,9 +293,9 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseLeave}
         >
-            <div style={gridStyle}>
-                {lattice.cells.map((row, y) =>
-                    row.map((cell, x) => {
+            {lattice.cells.map((row, y) => (
+                <div key={y} style={{ height: `${fontSize}px`, lineHeight: 1, display: 'block' }}>
+                    {row.map((cell, x) => {
                         // Apply tint color to non-empty cells
                         const isEmptyCell = cell.char === ' ' || cell.char === '' || cell.alpha === 0;
                         const textColor = (!isEmptyCell && layer.tintColor)
@@ -266,27 +306,26 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
                             color: textColor,
                             backgroundColor: cell.bgColor,
                             opacity: cell.alpha,
-                            width: `${fontSize}px`,
-                            height: `${fontSize}px`,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            lineHeight: 1,
-                            overflow: 'hidden',
                         };
 
-                        return (
-                            <div
-                                key={`${y}-${x}`}
-                                style={cellStyle}
-                                className={cell.className}
-                            >
-                                {cell.char}
-                            </div>
-                        );
-                    })
-                )}
-            </div>
+                        // If cell has a className or styling, wrap in span
+                        if (cell.className || cell.bgColor !== 'transparent' || textColor !== '#000000' || cell.alpha < 1) {
+                            return (
+                                <span
+                                    key={x}
+                                    style={cellStyle}
+                                    className={cell.className}
+                                >
+                                    {cell.char}
+                                </span>
+                            );
+                        }
+
+                        // Otherwise just output the character directly
+                        return cell.char;
+                    })}
+                </div>
+            ))}
             {renderCursorPreview()}
         </div>
     );

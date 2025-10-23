@@ -8,9 +8,18 @@ export class LayerStore {
     editingState: Layer | null = null;
     hasUnsavedChanges = false;
     nextLayerId = 1;
+    pendingLayerSwitch: number | null = null; // Track pending layer switch for dialog
 
     constructor() {
         makeAutoObservable(this);
+
+        // One-time migration: Check for incorrect localStorage values and fix them
+        const savedPreference = localStorage.getItem('layer-autosave-preference');
+        if (savedPreference && savedPreference !== 'always-save' && savedPreference !== 'never-save') {
+            // Invalid value found, clear it
+            localStorage.removeItem('layer-autosave-preference');
+            console.warn('Invalid layer-autosave-preference value found and cleared:', savedPreference);
+        }
     }
 
     // Layer creation
@@ -202,8 +211,19 @@ export class LayerStore {
     // Layer management
     setActiveLayer = (layerId: number) => {
         if (this.hasUnsavedChanges && this.activeLayerId !== layerId) {
-            if (!this.promptSaveChanges()) {
-                return;
+            // Check for saved preference
+            const savedPreference = localStorage.getItem('layer-autosave-preference');
+
+            if (savedPreference === 'always-save') {
+                // Auto-save without prompting
+                this.saveCurrentLayer();
+            } else if (savedPreference === 'never-save') {
+                // Discard changes without prompting
+                this.hasUnsavedChanges = false;
+            } else {
+                // No saved preference, need to show dialog
+                this.pendingLayerSwitch = layerId;
+                return; // Don't switch yet, wait for dialog response
             }
         }
 
@@ -225,6 +245,33 @@ export class LayerStore {
             }
             this.hasUnsavedChanges = false;
         }
+        this.pendingLayerSwitch = null;
+    };
+
+    // Handle dialog response for pending layer switch
+    confirmLayerSwitch = (shouldSave: boolean) => {
+        if (this.pendingLayerSwitch === null) return;
+
+        if (shouldSave) {
+            this.saveCurrentLayer();
+        } else {
+            this.hasUnsavedChanges = false;
+        }
+
+        // Now complete the layer switch
+        const layerId = this.pendingLayerSwitch;
+        this.pendingLayerSwitch = null;
+        this.setActiveLayer(layerId);
+    };
+
+    // Cancel pending layer switch
+    cancelLayerSwitch = () => {
+        this.pendingLayerSwitch = null;
+    };
+
+    // Reset auto-save preference
+    resetAutoSavePreference = () => {
+        localStorage.removeItem('layer-autosave-preference');
     };
 
     saveCurrentLayer = () => {
@@ -250,6 +297,20 @@ export class LayerStore {
     };
 
     promptSaveChanges = (): boolean => {
+        // Check for saved preference
+        const savedPreference = localStorage.getItem('layer-autosave-preference');
+
+        if (savedPreference === 'always-save') {
+            // Auto-save without prompting
+            this.saveCurrentLayer();
+            return true;
+        } else if (savedPreference === 'never-save') {
+            // Discard changes without prompting
+            this.hasUnsavedChanges = false;
+            return true;
+        }
+
+        // No saved preference, show prompt
         const result = confirm('You have unsaved changes. Do you want to save them?\n\nOK = Save changes\nCancel = Discard changes');
 
         if (result) {

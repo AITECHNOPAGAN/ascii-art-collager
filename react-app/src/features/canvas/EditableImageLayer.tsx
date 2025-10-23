@@ -17,6 +17,8 @@ export const EditableImageLayer = observer(({ layer, parallaxOffset = { x: 0, y:
     const [isDrawing, setIsDrawing] = useState(false);
     const [cursorPos, setCursorPos] = useState<{ x: number, y: number } | null>(null);
     const [imageLoaded, setImageLoaded] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragStart, setDragStart] = useState<{ x: number, y: number, offsetX: number, offsetY: number } | null>(null);
 
     const { activeTool, brushSettings } = editingStore;
     const isActive = layerStore.activeLayerId === layer.id;
@@ -125,7 +127,24 @@ export const EditableImageLayer = observer(({ layer, parallaxOffset = { x: 0, y:
     };
 
     const handleMouseDown = (e: React.MouseEvent) => {
-        if (!isActive || activeTool === 'select' || !imageLoaded) return;
+        if (!isActive || activeTool === 'select') return;
+
+        // Handle move tool
+        if (activeTool === 'move') {
+            e.preventDefault(); // Prevent text selection during drag
+            setIsDragging(true);
+            // Capture the current editing state offsets at drag start
+            const currentLayer = layerStore.editingState || layer;
+            setDragStart({
+                x: e.clientX,
+                y: e.clientY,
+                offsetX: currentLayer.offsetX,
+                offsetY: currentLayer.offsetY
+            });
+            return;
+        }
+
+        if (!imageLoaded) return;
 
         const coords = getCanvasCoords(e);
         if (!coords) return;
@@ -156,10 +175,21 @@ export const EditableImageLayer = observer(({ layer, parallaxOffset = { x: 0, y:
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
+        // Handle drag for move tool
+        if (isDragging && activeTool === 'move' && dragStart) {
+            const deltaX = e.clientX - dragStart.x;
+            const deltaY = e.clientY - dragStart.y;
+
+            // Calculate new offset relative to the original starting position
+            layerStore.setOffsetX(dragStart.offsetX + deltaX);
+            layerStore.setOffsetY(dragStart.offsetY + deltaY);
+            return;
+        }
+
         const coords = getCanvasCoords(e);
         setCursorPos(coords);
 
-        if (!isActive || !isDrawing || activeTool === 'select' || activeTool === 'color-picker') return;
+        if (!isActive || !isDrawing || activeTool === 'select' || activeTool === 'color-picker' || activeTool === 'move') return;
 
         if (coords) {
             applyBrush(coords.x, coords.y);
@@ -167,6 +197,13 @@ export const EditableImageLayer = observer(({ layer, parallaxOffset = { x: 0, y:
     };
 
     const handleMouseUp = () => {
+        if (isDragging && activeTool === 'move') {
+            setIsDragging(false);
+            setDragStart(null);
+            layerStore.saveCurrentLayer();
+            return;
+        }
+
         if (isDrawing && canvasRef.current) {
             setIsDrawing(false);
 
@@ -179,6 +216,10 @@ export const EditableImageLayer = observer(({ layer, parallaxOffset = { x: 0, y:
 
     const handleMouseLeave = () => {
         setCursorPos(null);
+        if (isDragging && activeTool === 'move') {
+            setIsDragging(false);
+            setDragStart(null);
+        }
         if (isDrawing && canvasRef.current) {
             setIsDrawing(false);
 
@@ -190,7 +231,7 @@ export const EditableImageLayer = observer(({ layer, parallaxOffset = { x: 0, y:
 
     // Render cursor preview
     const renderCursorPreview = () => {
-        if (!cursorPos || !isActive || activeTool === 'select' || !containerRef.current || !canvasRef.current) return null;
+        if (!cursorPos || !isActive || activeTool === 'select' || activeTool === 'move' || !containerRef.current || !canvasRef.current) return null;
 
         const containerRect = containerRef.current.getBoundingClientRect();
         const canvas = canvasRef.current;
@@ -231,6 +272,7 @@ export const EditableImageLayer = observer(({ layer, parallaxOffset = { x: 0, y:
     };
 
     const isInteractive = isActive && activeTool !== 'select';
+    const isMoveMode = isActive && activeTool === 'move';
 
     const { position, offsetX, offsetY, scale, zIndex } = layer;
 
@@ -254,14 +296,18 @@ export const EditableImageLayer = observer(({ layer, parallaxOffset = { x: 0, y:
 
     const containerStyle: React.CSSProperties = {
         position: 'absolute',
-        transition: 'transform 0.05s ease-out',
+        transition: isDragging ? 'none' : 'transform 0.05s ease-out',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex,
+        zIndex: isActive && isInteractive ? 9999 : zIndex, // Boost z-index when actively editing
         transformOrigin,
         transform,
-        cursor: isInteractive ? 'none' : 'default',
+        cursor: isMoveMode ? (isDragging ? 'grabbing' : 'grab') : (isInteractive ? 'none' : 'default'),
+        userSelect: 'none', // Prevent text selection
+        WebkitUserSelect: 'none', // Safari
+        MozUserSelect: 'none', // Firefox
+        msUserSelect: 'none', // IE/Edge
         ...(position === 'top-left' && { top: 0, left: 0 }),
         ...(position === 'top-right' && { top: 0, right: 0 }),
         ...(position === 'bottom-left' && { bottom: 0, left: 0 }),
