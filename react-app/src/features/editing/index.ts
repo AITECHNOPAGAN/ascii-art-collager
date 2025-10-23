@@ -1,0 +1,2 @@
+export { EditingToolbar } from './EditingToolbar';
+

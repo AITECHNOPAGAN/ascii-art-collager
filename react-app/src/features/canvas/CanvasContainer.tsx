@@ -1,13 +1,16 @@
 import { observer } from 'mobx-react-lite';
-import { useLayerStore, useCanvasStore, useEffectsStore } from '@/stores';
+import { useLayerStore, useCanvasStore, useEffectsStore, useEditingStore } from '@/stores';
 import { AsciiLayer } from './AsciiLayer';
 import { ImageLayer } from './ImageLayer';
+import { EditableAsciiLayer } from './EditableAsciiLayer';
+import { EditableImageLayer } from './EditableImageLayer';
 import { useEffect, useRef } from 'react';
 
 export const CanvasContainer = observer(() => {
     const layerStore = useLayerStore();
     const canvasStore = useCanvasStore();
     const effectsStore = useEffectsStore();
+    const editingStore = useEditingStore();
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -53,7 +56,20 @@ export const CanvasContainer = observer(() => {
                     y: (effectsStore.mouseY - 0.5) * layerData.parallaxStrength * 100,
                 } : { x: 0, y: 0 };
 
-                if (layerData.contentType === 'hiresImage') {
+                const isActive = layerStore.activeLayerId === layer.id;
+                const isEditMode = editingStore.activeTool !== 'select' || editingStore.isTextEditMode || editingStore.isHtmlEditMode;
+
+                // Render editable layer if active and in edit mode
+                if (isActive && isEditMode) {
+                    if (layerData.type === 'image') {
+                        return <EditableImageLayer key={layer.id} layer={layerData} parallaxOffset={parallaxOffset} />;
+                    } else {
+                        return <EditableAsciiLayer key={layer.id} layer={layerData} parallaxOffset={parallaxOffset} />;
+                    }
+                }
+
+                // Otherwise render regular layer
+                if (layerData.type === 'image') {
                     return <ImageLayer key={layer.id} layer={layerData} parallaxOffset={parallaxOffset} />;
                 } else {
                     return <AsciiLayer key={layer.id} layer={layerData} parallaxOffset={parallaxOffset} />;

@@ -1,15 +1,15 @@
 import { observer } from 'mobx-react-lite';
-import { Layer } from '@/types';
+import { AsciiLayer as AsciiLayerType } from '@/types';
 
 interface AsciiLayerProps {
-    layer: Layer;
+    layer: AsciiLayerType;
     parallaxOffset?: { x: number; y: number };
 }
 
 export const AsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 } }: AsciiLayerProps) => {
-    const { position, offsetX, offsetY, scale, fontSize, zIndex, contentType, asciiArt, color } = layer;
+    const { position, offsetX, offsetY, scale, fontSize, zIndex, lattice } = layer;
 
-    if (!asciiArt) return null;
+    if (!lattice || lattice.cells.length === 0) return null;
 
     let transformOrigin = 'center';
     switch (position) {
@@ -37,16 +37,18 @@ export const AsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 } }: 
         transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
     }
 
-    const style: React.CSSProperties = {
+    const containerStyle: React.CSSProperties = {
         position: 'absolute',
-        lineHeight: 1,
-        whiteSpace: 'pre',
-        fontFamily: "'Courier New', monospace",
         transition: 'transform 0.05s ease-out',
-        fontSize: `${fontSize}px`,
         zIndex,
         transformOrigin,
         transform,
+        fontFamily: "'Courier New', monospace",
+        fontSize: `${fontSize}px`,
+        lineHeight: 1,
+        whiteSpace: 'pre',
+        letterSpacing: 0,
+        wordSpacing: 0,
         ...(position === 'top-left' && { top: 0, left: 0 }),
         ...(position === 'top-right' && { top: 0, right: 0 }),
         ...(position === 'bottom-left' && { bottom: 0, left: 0 }),
@@ -54,17 +56,36 @@ export const AsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 } }: 
         ...(position === 'center' && { top: '50%', left: '50%' }),
     };
 
-    // For text content, wrap in a span with color
-    const content = contentType === 'text'
-        ? `<span style="color: ${color};">${asciiArt}</span>`
-        : asciiArt;
-
     return (
-        <div
-            className="ascii-layer"
-            style={style}
-            dangerouslySetInnerHTML={{ __html: content }}
-        />
+        <div className="ascii-layer" style={containerStyle}>
+            {lattice.cells.map((row, y) => (
+                <div key={y} style={{ height: `${fontSize}px`, lineHeight: 1, display: 'block' }}>
+                    {row.map((cell, x) => {
+                        const cellStyle: React.CSSProperties = {
+                            color: cell.textColor,
+                            backgroundColor: cell.bgColor,
+                            opacity: cell.alpha,
+                        };
+
+                        // If cell has a className, wrap in span
+                        if (cell.className || cell.bgColor !== 'transparent' || cell.textColor !== '#000000' || cell.alpha < 1) {
+                            return (
+                                <span
+                                    key={x}
+                                    style={cellStyle}
+                                    className={cell.className}
+                                >
+                                    {cell.char}
+                                </span>
+                            );
+                        }
+
+                        // Otherwise just output the character directly
+                        return cell.char;
+                    })}
+                </div>
+            ))}
+        </div>
     );
 });
 

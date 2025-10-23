@@ -1,17 +1,23 @@
 import { LayerStore } from './LayerStore';
 import { CanvasStore } from './CanvasStore';
 import { EffectsStore } from './EffectsStore';
+import { EditingStore } from './EditingStore';
+import { CustomStylesStore } from './CustomStylesStore';
 import { createContext, useContext } from 'react';
 
 export class RootStore {
     layerStore: LayerStore;
     canvasStore: CanvasStore;
     effectsStore: EffectsStore;
+    editingStore: EditingStore;
+    customStylesStore: CustomStylesStore;
 
     constructor() {
         this.layerStore = new LayerStore();
         this.canvasStore = new CanvasStore();
         this.effectsStore = new EffectsStore();
+        this.editingStore = new EditingStore();
+        this.customStylesStore = new CustomStylesStore();
     }
 }
 
@@ -30,4 +36,6 @@ export const useStores = () => {
 export const useLayerStore = () => useStores().layerStore;
 export const useCanvasStore = () => useStores().canvasStore;
 export const useEffectsStore = () => useStores().effectsStore;
+export const useEditingStore = () => useStores().editingStore;
+export const useCustomStylesStore = () => useStores().customStylesStore;
 

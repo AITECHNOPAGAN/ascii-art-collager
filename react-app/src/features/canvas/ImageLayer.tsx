@@ -1,15 +1,18 @@
 import { observer } from 'mobx-react-lite';
-import { Layer } from '@/types';
+import { ImageLayer as ImageLayerType } from '@/types';
 
 interface ImageLayerProps {
-    layer: Layer;
+    layer: ImageLayerType;
     parallaxOffset?: { x: number; y: number };
 }
 
 export const ImageLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 } }: ImageLayerProps) => {
-    const { position, offsetX, offsetY, scale, zIndex, imageData } = layer;
+    const { position, offsetX, offsetY, scale, zIndex, imageData, editedPixels } = layer;
 
-    if (!imageData) return null;
+    // Use edited pixels if available, otherwise use original image
+    const displayImage = editedPixels || imageData;
+
+    if (!displayImage) return null;
 
     let transformOrigin = 'center';
     switch (position) {
@@ -56,7 +59,7 @@ export const ImageLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 } }: 
     return (
         <div className="image-layer" style={style}>
             <img
-                src={imageData}
+                src={displayImage}
                 style={{ maxWidth: '100%', maxHeight: '100%', display: 'block' }}
                 alt="Layer content"
             />

@@ -1,5 +1,6 @@
 import { makeAutoObservable } from 'mobx';
-import { Layer, ContentType, Position } from '@/types';
+import { Layer, AsciiLayer, ImageLayer, Position, CharacterCell } from '@/types';
+import { convertImageToAscii, parseColoredAscii, loadImageFromFile } from '@/utils/imageToAscii';
 
 export class LayerStore {
     layers: Layer[] = [];
@@ -12,26 +13,53 @@ export class LayerStore {
         makeAutoObservable(this);
     }
 
-    createNewLayer = () => {
-        // Check for unsaved changes before creating new layer
-        if (this.hasUnsavedChanges) {
-            if (!this.promptSaveChanges()) {
-                return;
-            }
+    // Layer creation
+    createNewAsciiLayer = (resolution: number = 100) => {
+        if (this.hasUnsavedChanges && !this.promptSaveChanges()) {
+            return;
         }
 
-        const layer: Layer = {
+        const layer: AsciiLayer = {
             id: this.nextLayerId++,
-            name: `Layer ${this.nextLayerId - 1}`,
-            asciiArt: '',
-            imageData: null,
-            contentType: 'image',
+            name: `ASCII Layer ${this.nextLayerId - 1}`,
+            type: 'ascii',
+            lattice: {
+                width: 0,
+                height: 0,
+                cells: []
+            },
+            resolution,
             position: 'center',
             offsetX: 0,
             offsetY: 0,
             scale: 1,
             fontSize: 12,
-            color: '#000000',
+            zIndex: this.layers.length + 2,
+            visibility: true,
+            parallaxStrength: 0.3 + (this.layers.length * 0.1)
+        };
+
+        this.layers.push(layer);
+        this.activeLayerId = layer.id;
+        this.editingState = { ...layer, lattice: { ...layer.lattice, cells: [] } };
+        this.hasUnsavedChanges = false;
+    };
+
+    createNewImageLayer = () => {
+        if (this.hasUnsavedChanges && !this.promptSaveChanges()) {
+            return;
+        }
+
+        const layer: ImageLayer = {
+            id: this.nextLayerId++,
+            name: `Image Layer ${this.nextLayerId - 1}`,
+            type: 'image',
+            imageData: '',
+            position: 'center',
+            offsetX: 0,
+            offsetY: 0,
+            scale: 1,
+            fontSize: 12,
             zIndex: this.layers.length + 2,
             visibility: true,
             parallaxStrength: 0.3 + (this.layers.length * 0.1)
@@ -43,8 +71,136 @@ export class LayerStore {
         this.hasUnsavedChanges = false;
     };
 
+    // ASCII layer methods
+    setLatticeFromImage = async (layerId: number, file: File, resolution?: number) => {
+        const layer = this.layers.find(l => l.id === layerId);
+        if (!layer || layer.type !== 'ascii') return;
+
+        try {
+            const img = await loadImageFromFile(file);
+            const imageDataUrl = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target?.result as string);
+                reader.readAsDataURL(file);
+            });
+
+            const lattice = convertImageToAscii(img, resolution || layer.resolution);
+
+            if (this.editingState?.id === layerId && this.editingState.type === 'ascii') {
+                this.editingState.lattice = lattice;
+                this.editingState.originalImage = imageDataUrl;
+                this.hasUnsavedChanges = true;
+            }
+        } catch (error) {
+            console.error('Failed to convert image to ASCII:', error);
+            throw error;
+        }
+    };
+
+    setLatticeFromText = (layerId: number, text: string) => {
+        const layer = this.layers.find(l => l.id === layerId);
+        if (!layer || layer.type !== 'ascii') return;
+
+        const lattice = parseColoredAscii(text);
+
+        if (this.editingState?.id === layerId && this.editingState.type === 'ascii') {
+            this.editingState.lattice = lattice;
+            // Clear originalImage when pasting text, so resolution slider gets disabled
+            this.editingState.originalImage = undefined;
+            this.hasUnsavedChanges = true;
+        }
+    };
+
+    updateLatticeCell = (layerId: number, x: number, y: number, updates: Partial<CharacterCell>) => {
+        // Update editingState if this is the active layer
+        if (this.editingState?.id === layerId && this.editingState.type === 'ascii') {
+            if (y < 0 || y >= this.editingState.lattice.height || x < 0 || x >= this.editingState.lattice.width) return;
+
+            this.editingState.lattice.cells[y][x] = {
+                ...this.editingState.lattice.cells[y][x],
+                ...updates
+            };
+            this.hasUnsavedChanges = true;
+            return;
+        }
+
+        // Fallback to updating main layers (for non-active layers)
+        const layer = this.layers.find(l => l.id === layerId);
+        if (!layer || layer.type !== 'ascii') return;
+
+        if (y < 0 || y >= layer.lattice.height || x < 0 || x >= layer.lattice.width) return;
+
+        layer.lattice.cells[y][x] = {
+            ...layer.lattice.cells[y][x],
+            ...updates
+        };
+    };
+
+    eraseLatticeCell = (layerId: number, x: number, y: number) => {
+        this.updateLatticeCell(layerId, x, y, {
+            char: ' ',
+            textColor: '#000000',
+            bgColor: 'transparent',
+            alpha: 0
+        });
+    };
+
+    setLatticeResolution = async (layerId: number, resolution: number) => {
+        // Check editingState first since that's where active changes are
+        if (this.editingState?.id !== layerId || this.editingState.type !== 'ascii') {
+            return;
+        }
+
+        // Now TypeScript knows editingState is AsciiLayer
+        const asciiEditingState = this.editingState;
+
+        if (!asciiEditingState.originalImage) {
+            return;
+        }
+
+        try {
+            const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+                const image = new Image();
+                image.onload = () => resolve(image);
+                image.onerror = reject;
+                image.src = asciiEditingState.originalImage!;
+            });
+
+            const newLattice = convertImageToAscii(img, resolution);
+
+            if (this.editingState?.id === layerId && this.editingState.type === 'ascii') {
+                this.editingState.resolution = resolution;
+                this.editingState.lattice = newLattice;
+                this.hasUnsavedChanges = true;
+            }
+        } catch (error) {
+            console.error('Failed to regenerate lattice:', error);
+        }
+    };
+
+    // Image layer methods
+    setImageData = (layerId: number, imageData: string) => {
+        const layer = this.layers.find(l => l.id === layerId);
+        if (!layer || layer.type !== 'image') return;
+
+        if (this.editingState?.id === layerId && this.editingState.type === 'image') {
+            this.editingState.imageData = imageData;
+            this.hasUnsavedChanges = true;
+        }
+    };
+
+    setEditedPixels = (layerId: number, editedPixels: string) => {
+        const layer = this.layers.find(l => l.id === layerId);
+        if (!layer || layer.type !== 'image') return;
+
+        if (this.editingState?.id === layerId && this.editingState.type === 'image') {
+            this.editingState.editedPixels = editedPixels;
+            this.hasUnsavedChanges = true;
+        }
+    };
+
+    // Layer management
     setActiveLayer = (layerId: number) => {
-        // Check for unsaved changes before switching
         if (this.hasUnsavedChanges && this.activeLayerId !== layerId) {
             if (!this.promptSaveChanges()) {
                 return;
@@ -53,10 +209,20 @@ export class LayerStore {
 
         this.activeLayerId = layerId;
 
-        // Initialize editingState with the new active layer
         const layer = this.layers.find(l => l.id === layerId);
         if (layer) {
-            this.editingState = { ...layer };
+            // Deep copy to avoid reference issues
+            if (layer.type === 'ascii') {
+                this.editingState = {
+                    ...layer,
+                    lattice: {
+                        ...layer.lattice,
+                        cells: layer.lattice.cells.map(row => row.map(cell => ({ ...cell })))
+                    }
+                };
+            } else {
+                this.editingState = { ...layer };
+            }
             this.hasUnsavedChanges = false;
         }
     };
@@ -64,11 +230,21 @@ export class LayerStore {
     saveCurrentLayer = () => {
         if (!this.editingState || !this.activeLayerId) return;
 
-        const layer = this.layers.find(l => l.id === this.activeLayerId);
-        if (!layer) return;
+        const layerIndex = this.layers.findIndex(l => l.id === this.activeLayerId);
+        if (layerIndex === -1) return;
 
-        // Copy editingState to the layer
-        Object.assign(layer, this.editingState);
+        // Deep copy editingState to layer
+        if (this.editingState.type === 'ascii') {
+            this.layers[layerIndex] = {
+                ...this.editingState,
+                lattice: {
+                    ...this.editingState.lattice,
+                    cells: this.editingState.lattice.cells.map(row => row.map(cell => ({ ...cell })))
+                }
+            };
+        } else {
+            this.layers[layerIndex] = { ...this.editingState };
+        }
 
         this.hasUnsavedChanges = false;
     };
@@ -77,18 +253,15 @@ export class LayerStore {
         const result = confirm('You have unsaved changes. Do you want to save them?\n\nOK = Save changes\nCancel = Discard changes');
 
         if (result) {
-            // User clicked OK - save changes
             this.saveCurrentLayer();
         } else {
-            // User clicked Cancel - discard changes
             this.hasUnsavedChanges = false;
         }
 
-        return true; // Always proceed with the action
+        return true;
     };
 
     deleteLayer = (layerId: number) => {
-        // Check for unsaved changes if deleting active layer
         if (layerId === this.activeLayerId && this.hasUnsavedChanges) {
             const result = confirm('This layer has unsaved changes. Are you sure you want to delete it?');
             if (!result) return;
@@ -103,11 +276,20 @@ export class LayerStore {
             this.editingState = null;
             this.hasUnsavedChanges = false;
 
-            // Load editingState for the new active layer
             if (this.activeLayerId) {
                 const newActiveLayer = this.layers.find(l => l.id === this.activeLayerId);
                 if (newActiveLayer) {
-                    this.editingState = { ...newActiveLayer };
+                    if (newActiveLayer.type === 'ascii') {
+                        this.editingState = {
+                            ...newActiveLayer,
+                            lattice: {
+                                ...newActiveLayer.lattice,
+                                cells: newActiveLayer.lattice.cells.map(row => row.map(cell => ({ ...cell })))
+                            }
+                        };
+                    } else {
+                        this.editingState = { ...newActiveLayer };
+                    }
                 }
             }
         }
@@ -145,28 +327,8 @@ export class LayerStore {
     // Editing state updates
     updateEditingState = (updates: Partial<Layer>) => {
         if (!this.editingState) return;
-        this.editingState = { ...this.editingState, ...updates };
+        this.editingState = { ...this.editingState, ...updates } as Layer;
         this.hasUnsavedChanges = true;
-    };
-
-    setContentType = (contentType: ContentType) => {
-        this.updateEditingState({ contentType });
-    };
-
-    setAsciiArt = (asciiArt: string) => {
-        this.updateEditingState({ asciiArt });
-    };
-
-    setImageData = (imageData: string) => {
-        this.updateEditingState({ imageData });
-    };
-
-    setColor = (color: string) => {
-        this.updateEditingState({ color });
-    };
-
-    setFontSize = (fontSize: number) => {
-        this.updateEditingState({ fontSize });
     };
 
     setPosition = (position: Position) => {
@@ -185,6 +347,10 @@ export class LayerStore {
         this.updateEditingState({ scale });
     };
 
+    setFontSize = (fontSize: number) => {
+        this.updateEditingState({ fontSize });
+    };
+
     setParallaxStrength = (parallaxStrength: number) => {
         this.updateEditingState({ parallaxStrength });
     };
@@ -195,15 +361,35 @@ export class LayerStore {
     }
 
     get hasLayers(): boolean {
-        return this.layers.length > 0 && this.layers.some(l => l.asciiArt || l.imageData);
+        return this.layers.length > 0 && this.layers.some(l => {
+            if (l.type === 'ascii') {
+                return l.lattice.cells.length > 0;
+            } else {
+                return l.imageData !== '';
+            }
+        });
     }
 
     getLayerData = (layerId: number): Layer | undefined => {
         const layer = this.layers.find(l => l.id === layerId);
         if (!layer) return undefined;
 
-        // Use editingState for active layer, saved layer for others
         return (layer.id === this.activeLayerId && this.editingState) ? this.editingState : layer;
     };
-}
 
+    // Project serialization helpers
+    toJSON = () => {
+        return {
+            layers: this.layers,
+            nextLayerId: this.nextLayerId
+        };
+    };
+
+    loadFromJSON = (data: { layers: Layer[], nextLayerId: number }) => {
+        this.layers = data.layers;
+        this.nextLayerId = data.nextLayerId;
+        this.activeLayerId = null;
+        this.editingState = null;
+        this.hasUnsavedChanges = false;
+    };
+}

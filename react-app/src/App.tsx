@@ -3,6 +3,9 @@ import { LayerPanel, LayerControls } from './features/layers';
 import { CanvasContainer } from './features/canvas';
 import { EffectsPanel } from './features/effects';
 import { ExportPanel } from './features/export';
+import { ProjectControls } from './features/project';
+import { EditingToolbar } from './features/editing';
+import { CustomStylesPanel } from './features/styles';
 
 const rootStore = new RootStore();
 
@@ -14,9 +17,15 @@ function App() {
                 <div className="w-80 bg-card border-r overflow-y-auto p-4 space-y-4">
                     <h1 className="text-2xl font-bold mb-4">ASCII Art Generator</h1>
 
+                    <ProjectControls />
+
                     <LayerPanel />
 
                     <LayerControls />
+
+                    <EditingToolbar />
+
+                    <CustomStylesPanel />
 
                     <EffectsPanel />
 

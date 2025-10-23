@@ -1,15 +1,14 @@
 import { observer } from 'mobx-react-lite';
 import { useLayerStore } from '@/stores';
-import { convertImageToAscii, loadImageFromFile, getImageDataFromFile } from '@/utils/imageToAscii';
-import { ContentType, Position } from '@/types';
+import { Position } from '@/types';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 export const LayerControls = observer(() => {
     const layerStore = useLayerStore();
@@ -19,17 +18,18 @@ export const LayerControls = observer(() => {
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file) return;
+        if (!file || !editingState) return;
 
         try {
-            if (editingState.contentType === 'hiresImage') {
-                const imageData = await getImageDataFromFile(file);
-                layerStore.setImageData(imageData);
-            } else {
-                const img = await loadImageFromFile(file);
-                const asciiArt = convertImageToAscii(img);
-                layerStore.setAsciiArt(asciiArt);
-                layerStore.setContentType('image');
+            if (editingState.type === 'ascii') {
+                await layerStore.setLatticeFromImage(editingState.id, file);
+            } else if (editingState.type === 'image') {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const imageData = event.target?.result as string;
+                    layerStore.setImageData(editingState.id, imageData);
+                };
+                reader.readAsDataURL(file);
             }
         } catch (error) {
             alert('Failed to load image');
@@ -39,71 +39,82 @@ export const LayerControls = observer(() => {
         e.target.value = '';
     };
 
-    const handleContentTypeChange = (value: string) => {
-        layerStore.setContentType(value as ContentType);
-    };
-
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="text-lg">Layer Settings</CardTitle>
+                <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">Layer Settings</CardTitle>
+                    <Badge variant={editingState.type === 'ascii' ? 'default' : 'secondary'}>
+                        {editingState.type === 'ascii' ? 'ASCII' : 'Image'}
+                    </Badge>
+                </div>
             </CardHeader>
             <CardContent className="space-y-4">
-                {/* Content Type */}
-                <div className="space-y-2">
-                    <Label>Content Type</Label>
-                    <RadioGroup value={editingState.contentType} onValueChange={handleContentTypeChange}>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="image" id="type-image" />
-                            <Label htmlFor="type-image" className="font-normal cursor-pointer">ASCII Image</Label>
+                {/* Layer Type Specific Controls */}
+                {editingState.type === 'ascii' ? (
+                    <>
+                        {/* Resolution Control */}
+                        <div className="space-y-2">
+                            <Label>
+                                Resolution: {editingState.resolution} chars
+                                {editingState.lattice && ` (${editingState.lattice.width}×${editingState.lattice.height})`}
+                            </Label>
+                            <Slider
+                                value={[editingState.resolution]}
+                                onValueChange={([value]: number[]) => {
+                                    // Only allow changes if there's an original image
+                                    if (!editingState.originalImage) return;
+                                    layerStore.setLatticeResolution(editingState.id, value);
+                                }}
+                                min={20}
+                                max={200}
+                                step={10}
+                                disabled={!editingState.originalImage}
+                            />
+                            {!editingState.originalImage && (
+                                <p className="text-xs text-muted-foreground italic">
+                                    Resolution control is only available for image-to-ASCII conversion. Upload an image to enable.
+                                </p>
+                            )}
                         </div>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="hiresImage" id="type-hires" />
-                            <Label htmlFor="type-hires" className="font-normal cursor-pointer">Hi-Res Image</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="text" id="type-text" />
-                            <Label htmlFor="type-text" className="font-normal cursor-pointer">ASCII Text</Label>
-                        </div>
-                    </RadioGroup>
-                </div>
 
-                {/* Upload or Text Input */}
-                {editingState.contentType === 'text' ? (
-                    <div className="space-y-2">
-                        <Label htmlFor="ascii-textarea">ASCII Art</Label>
-                        <Textarea
-                            id="ascii-textarea"
-                            value={editingState.asciiArt}
-                            onChange={(e) => layerStore.setAsciiArt(e.target.value)}
-                            placeholder="Paste or type your ASCII art here..."
-                            rows={6}
-                            className="font-mono text-xs"
-                        />
-                    </div>
+                        {/* Upload Image or Text Input */}
+                        <div className="space-y-2">
+                            <Label htmlFor="image-upload">Upload Image</Label>
+                            <Input
+                                id="image-upload"
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="ascii-textarea">Or Paste ASCII Art</Label>
+                            <Textarea
+                                id="ascii-textarea"
+                                value={editingState.lattice ? '' : ''}
+                                onChange={(e) => layerStore.setLatticeFromText(editingState.id, e.target.value)}
+                                placeholder="Paste colored ASCII art here..."
+                                rows={4}
+                                className="font-mono text-xs"
+                            />
+                        </div>
+                    </>
                 ) : (
-                    <div className="space-y-2">
-                        <Label htmlFor="image-upload">Upload Image</Label>
-                        <Input
-                            id="image-upload"
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageUpload}
-                        />
-                    </div>
+                    <>
+                        {/* Image Layer Controls */}
+                        <div className="space-y-2">
+                            <Label htmlFor="image-upload">Upload Image</Label>
+                            <Input
+                                id="image-upload"
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                            />
+                        </div>
+                    </>
                 )}
-
-                {/* Text Color */}
-                <div className="space-y-2">
-                    <Label htmlFor="color-picker">Text Color</Label>
-                    <Input
-                        id="color-picker"
-                        type="color"
-                        value={editingState.color}
-                        onChange={(e) => layerStore.setColor(e.target.value)}
-                        className="h-10 cursor-pointer"
-                    />
-                </div>
 
                 {/* Font Size */}
                 <div className="space-y-2">
@@ -190,4 +201,3 @@ export const LayerControls = observer(() => {
         </Card>
     );
 });
-

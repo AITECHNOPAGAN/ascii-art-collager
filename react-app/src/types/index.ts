@@ -1,24 +1,80 @@
-export type ContentType = 'image' | 'hiresImage' | 'text';
+// Layer Types
+export type LayerType = 'ascii' | 'image';
 
 export type Position = 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
 export type Resolution = 'responsive' | 'square' | 'landscape' | 'portrait';
 
-export interface Layer {
+// Character cell for ASCII lattice layers
+export interface CharacterCell {
+    char: string;
+    textColor: string;
+    bgColor: string;
+    alpha: number;
+    className?: string; // For custom CSS classes
+}
+
+// ASCII Lattice structure
+export interface AsciiLattice {
+    width: number;
+    height: number;
+    cells: CharacterCell[][];
+}
+
+// Base layer properties shared by all layers
+interface BaseLayer {
     id: number;
     name: string;
-    asciiArt: string;
-    imageData: string | null;
-    contentType: ContentType;
     position: Position;
     offsetX: number;
     offsetY: number;
     scale: number;
     fontSize: number;
-    color: string;
     zIndex: number;
     visibility: boolean;
     parallaxStrength: number;
+}
+
+// ASCII Layer (character-based lattice)
+export interface AsciiLayer extends BaseLayer {
+    type: 'ascii';
+    lattice: AsciiLattice;
+    resolution: number;
+    originalImage?: string; // data URL for re-conversion at different resolutions
+}
+
+// Image Layer (pixel-based)
+export interface ImageLayer extends BaseLayer {
+    type: 'image';
+    imageData: string; // data URL
+    editedPixels?: string; // data URL of edited canvas
+}
+
+// Discriminated union for layers
+export type Layer = AsciiLayer | ImageLayer;
+
+// Editing Tools
+export type EditingTool = 'select' | 'erase' | 'paint-color' | 'paint-alpha' | 'color-picker';
+
+export interface BrushSettings {
+    radius: number;
+    currentChar: string;
+    currentTextColor: string;
+    currentBgColor: string;
+    currentAlpha: number;
+}
+
+// Project state for serialization
+export interface ProjectState {
+    version: string;
+    layers: Layer[];
+    canvasResolution: Resolution;
+    customCSS?: string; // Custom CSS for class names
+    metadata: {
+        createdAt: string;
+        modifiedAt: string;
+        name?: string;
+    };
 }
 
 export interface ExportConfig {

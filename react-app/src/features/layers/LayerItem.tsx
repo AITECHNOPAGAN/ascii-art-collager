@@ -21,22 +21,35 @@ export const LayerItem = observer(({ layerId, index, totalLayers }: LayerItemPro
     const isActive = layer.id === layerStore.activeLayerId;
     const unsavedIndicator = (layer.id === layerStore.activeLayerId && layerStore.hasUnsavedChanges) ? ' *' : '';
 
-    // Create preview based on content type
+    // Create preview based on layer type
     let preview: string;
-    if (displayData.contentType === 'hiresImage') {
-        preview = displayData.imageData ? '🖼️ Hi-Res Image' : '(no image)';
-    } else if (displayData.contentType === 'image') {
-        const asciiText = displayData.asciiArt ? displayData.asciiArt.replace(/<[^>]*>/g, '') : '';
-        preview = asciiText ? '🎨 ' + asciiText.substring(0, 25).replace(/\n/g, ' ') + '...' : '(no ASCII art)';
+    if (displayData.type === 'image') {
+        const displayImage = displayData.editedPixels || displayData.imageData;
+        preview = displayImage ? '🖼️ Image Layer' : '(no image)';
     } else {
-        const asciiText = displayData.asciiArt ? displayData.asciiArt.replace(/<[^>]*>/g, '') : '';
-        preview = asciiText ? asciiText.substring(0, 30).replace(/\n/g, ' ') + '...' : '(empty)';
+        // ASCII layer
+        const hasContent = displayData.lattice && displayData.lattice.cells.length > 0;
+        if (hasContent) {
+            // Get first few non-empty characters from lattice
+            let previewText = '';
+            for (let y = 0; y < Math.min(3, displayData.lattice.height); y++) {
+                for (let x = 0; x < Math.min(20, displayData.lattice.width); x++) {
+                    const cell = displayData.lattice.cells[y]?.[x];
+                    if (cell && cell.char !== ' ') {
+                        previewText += cell.char;
+                    }
+                }
+            }
+            preview = previewText ? '🎨 ' + previewText.substring(0, 25) + '...' : '(empty lattice)';
+        } else {
+            preview = '(empty)';
+        }
     }
 
     return (
         <div
             className={`
-        bg-secondary/50 border-2 rounded-lg p-3 cursor-pointer transition-all
+        bg-secondary/50 border-1 p-3 cursor-pointer transition-all
         ${isActive ? 'border-primary bg-primary/10 shadow-lg' : 'border-border hover:border-border/60 hover:bg-secondary/70'}
       `}
             onClick={() => layerStore.setActiveLayer(layerId)}

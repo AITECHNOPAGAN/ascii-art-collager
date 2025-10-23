@@ -1,4 +1,4 @@
-import { Layer, ExportConfig, ResolutionStyles } from '@/types';
+import { Layer, ExportConfig, ResolutionStyles, AsciiLayer, ImageLayer } from '@/types';
 
 export function getResolutionStyles(resolution: string): ResolutionStyles {
     let containerStyles = '';
@@ -59,12 +59,54 @@ export function getResolutionStyles(resolution: string): ResolutionStyles {
     return { containerStyles, bodyStyles };
 }
 
+function exportAsciiLayer(layer: AsciiLayer): string {
+    // Export lattice as grid of styled characters
+    let content = '';
+    const { lattice, fontSize } = layer;
+
+    if (!lattice || lattice.cells.length === 0) return '';
+
+    // Generate grid structure with inline styles for each cell
+    for (let y = 0; y < lattice.height; y++) {
+        for (let x = 0; x < lattice.width; x++) {
+            const cell = lattice.cells[y][x];
+            const bgStyle = cell.bgColor !== 'transparent' ? `background-color: ${cell.bgColor};` : '';
+            const style = `color: ${cell.textColor}; ${bgStyle} opacity: ${cell.alpha};`;
+            content += `<span style="${style}">${cell.char}</span>`;
+        }
+        content += '\n';
+    }
+
+    const positionClass = `position-${layer.position}`;
+    return `        <div class="ascii-layer ${positionClass}" data-layer-id="${layer.id}" data-parallax="${layer.parallaxStrength}" data-offset-x="${layer.offsetX}" data-offset-y="${layer.offsetY}" data-scale="${layer.scale}" style="z-index: ${layer.zIndex}; font-size: ${fontSize}px;">
+${content}
+        </div>\n`;
+}
+
+function exportImageLayer(layer: ImageLayer): string {
+    const displayImage = layer.editedPixels || layer.imageData;
+    if (!displayImage) return '';
+
+    const positionClass = `position-${layer.position}`;
+    return `        <div class="image-layer ${positionClass}" data-layer-id="${layer.id}" data-parallax="${layer.parallaxStrength}" data-offset-x="${layer.offsetX}" data-offset-y="${layer.offsetY}" data-scale="${layer.scale}" style="z-index: ${layer.zIndex};">
+            <img src="${displayImage}" style="max-width: 100%; max-height: 100%; display: block;">
+        </div>\n`;
+}
+
 export function generateExportHTML(
     layers: Layer[],
     config: ExportConfig
 ): string {
     // Filter visible layers with content
-    const visibleLayers = layers.filter(l => l.visibility && (l.asciiArt || l.imageData));
+    const visibleLayers = layers.filter(l => {
+        if (!l.visibility) return false;
+        if (l.type === 'ascii') {
+            return l.lattice && l.lattice.cells.length > 0;
+        } else {
+            return l.imageData !== '';
+        }
+    });
+
     if (visibleLayers.length === 0) return '';
 
     const { containerStyles, bodyStyles } = getResolutionStyles(config.resolution);
@@ -72,24 +114,10 @@ export function generateExportHTML(
     // Generate layers HTML
     let layersHTML = '';
     visibleLayers.forEach(layer => {
-        const positionClass = `position-${layer.position}`;
-
-        if (layer.contentType === 'hiresImage' && layer.imageData) {
-            // Render hi-res image layer
-            layersHTML += `        <div class="image-layer ${positionClass}" data-layer-id="${layer.id}" data-parallax="${layer.parallaxStrength}" data-offset-x="${layer.offsetX}" data-offset-y="${layer.offsetY}" data-scale="${layer.scale}" style="z-index: ${layer.zIndex};">
-            <img src="${layer.imageData}" style="max-width: 100%; max-height: 100%; display: block;">
-        </div>\n`;
-        } else if (layer.contentType === 'text' && layer.asciiArt) {
-            // Render ASCII text layer
-            const content = `<span style="color: ${layer.color};">${layer.asciiArt}</span>`;
-            layersHTML += `        <div class="ascii-layer ${positionClass}" data-layer-id="${layer.id}" data-parallax="${layer.parallaxStrength}" data-offset-x="${layer.offsetX}" data-offset-y="${layer.offsetY}" data-scale="${layer.scale}" style="z-index: ${layer.zIndex}; font-size: ${layer.fontSize}px;">
-${content}
-        </div>\n`;
-        } else if (layer.contentType === 'image' && layer.asciiArt) {
-            // Render ASCII-converted image layer
-            layersHTML += `        <div class="ascii-layer ${positionClass}" data-layer-id="${layer.id}" data-parallax="${layer.parallaxStrength}" data-offset-x="${layer.offsetX}" data-offset-y="${layer.offsetY}" data-scale="${layer.scale}" style="z-index: ${layer.zIndex}; font-size: ${layer.fontSize}px;">
-${layer.asciiArt}
-        </div>\n`;
+        if (layer.type === 'ascii') {
+            layersHTML += exportAsciiLayer(layer);
+        } else {
+            layersHTML += exportImageLayer(layer);
         }
     });
 
@@ -168,17 +196,6 @@ ${layer.asciiArt}
         .image-layer.position-center {
             top: 50%;
             left: 50%;
-        }
-        
-        /* Twinkle animation for special characters in ASCII art */
-        .twinkle {
-            display: inline;
-            animation: twinkle 2s ease-in-out infinite;
-        }
-        
-        @keyframes twinkle {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
         }${config.includeGeneratorLink ? `
         
         /* Generator Link Styles */
@@ -336,4 +353,3 @@ export function downloadFile(content: string, filename: string): void {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
-

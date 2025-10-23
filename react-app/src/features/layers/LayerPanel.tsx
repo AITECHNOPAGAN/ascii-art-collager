@@ -3,7 +3,7 @@ import { useLayerStore } from '@/stores';
 import { LayerItem } from './LayerItem';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus } from 'lucide-react';
+import { Plus, Image as ImageIcon } from 'lucide-react';
 
 export const LayerPanel = observer(() => {
     const layerStore = useLayerStore();
@@ -12,16 +12,22 @@ export const LayerPanel = observer(() => {
         <Card>
             <CardHeader>
                 <CardTitle className="text-lg">Layers</CardTitle>
-                <Button onClick={() => layerStore.createNewLayer()} className="w-full mt-2">
-                    <Plus className="mr-2 h-4 w-4" />
-                    New Layer
-                </Button>
+                <div className="flex gap-2 mt-2">
+                    <Button onClick={() => layerStore.createNewAsciiLayer()} className="flex-1">
+                        <Plus className="mr-2 h-4 w-4" />
+                        ASCII
+                    </Button>
+                    <Button onClick={() => layerStore.createNewImageLayer()} className="flex-1">
+                        <ImageIcon className="mr-2 h-4 w-4" />
+                        Image
+                    </Button>
+                </div>
             </CardHeader>
             <CardContent>
                 <div className="space-y-2 max-h-[250px] overflow-y-auto">
                     {layerStore.layers.length === 0 ? (
                         <div className="text-center text-muted-foreground text-sm py-8 italic">
-                            No layers yet. Click "New Layer" to start!
+                            No layers yet. Click a button to create one!
                         </div>
                     ) : (
                         layerStore.layers.map((layer, index) => (
