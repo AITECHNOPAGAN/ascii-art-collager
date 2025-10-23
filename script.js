@@ -25,6 +25,7 @@ const parallaxValue = document.getElementById('parallaxValue');
 const exportBtn = document.getElementById('exportBtn');
 const saveLayerBtn = document.getElementById('saveLayerBtn');
 const resolutionSelect = document.getElementById('resolutionSelect');
+const includeGeneratorLinkToggle = document.getElementById('includeGeneratorLinkToggle');
 
 // Layer system state
 let layers = [];
@@ -931,7 +932,7 @@ ${layer.asciiArt}
         @keyframes twinkle {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.3; }
-        }
+        }${includeGeneratorLinkToggle.checked ? `
         
         /* Generator Link Styles */
         .generator-link {
@@ -978,16 +979,14 @@ ${layer.asciiArt}
         
         .generator-link:hover::after {
             opacity: 1;
-        }
+        }` : ''}
     </style>
 </head>
 <body>
     <div class="canvas-container">
 ${layersHTML}
     </div>
-    
-    <a href="https://aitechnopagan.github.io/sailormoonrpg/" class="generator-link" target="_blank">Made with ASCII Art Generator</a>
-
+    ${includeGeneratorLinkToggle.checked ? '\n    <a href="https://aitechnopagan.github.io/sailormoonrpg/" class="generator-link" target="_blank">Made with ASCII Art Generator</a>\n' : ''}
     <script>
         // Parallax state
         const parallaxEnabled = ${parallaxEnabled};
