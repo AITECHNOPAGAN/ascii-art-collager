@@ -1,5 +1,5 @@
 import { observer } from 'mobx-react-lite';
-import { useLayerStore } from '@/stores';
+import { useLayerStore, useSettingsStore } from '@/stores';
 import { Position } from '@/types';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -12,9 +12,13 @@ import { Badge } from '@/components/ui/badge';
 
 export const LayerControls = observer(() => {
     const layerStore = useLayerStore();
+    const settingsStore = useSettingsStore();
     const { editingState } = layerStore;
 
     if (!editingState) return null;
+
+    const autoSaveSetting = settingsStore.getSetting('auto-save-on-layer-change');
+    const showSaveButton = autoSaveSetting !== 'always-save';
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -78,55 +82,49 @@ export const LayerControls = observer(() => {
                             )}
                         </div>
 
-                        {/* Upload Image or Text Input */}
-                        <div className="space-y-2">
-                            <Label htmlFor="image-upload">Upload Image</Label>
-                            <Input
-                                id="image-upload"
-                                type="file"
-                                accept="image/*"
-                                onChange={handleImageUpload}
-                            />
-                        </div>
+                        {/* Upload Image or Text Input - Only show if layer is empty */}
+                        {!editingState.lattice?.cells?.length && (
+                            <>
+                                <div className="space-y-2">
+                                    <Label htmlFor="image-upload">Upload Image</Label>
+                                    <Input
+                                        id="image-upload"
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageUpload}
+                                    />
+                                </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="ascii-textarea">Or Paste ASCII Art</Label>
-                            <Textarea
-                                id="ascii-textarea"
-                                value={editingState.lattice ? '' : ''}
-                                onChange={(e) => layerStore.setLatticeFromText(editingState.id, e.target.value)}
-                                placeholder="Paste colored ASCII art here..."
-                                rows={4}
-                                className="font-mono text-xs"
-                            />
-                        </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="ascii-textarea">Or Paste ASCII Art</Label>
+                                    <Textarea
+                                        id="ascii-textarea"
+                                        value=""
+                                        onChange={(e) => layerStore.setLatticeFromText(editingState.id, e.target.value)}
+                                        placeholder="Paste colored ASCII art here..."
+                                        rows={4}
+                                        className="font-mono text-xs"
+                                    />
+                                </div>
+                            </>
+                        )}
                     </>
                 ) : (
                     <>
-                        {/* Image Layer Controls */}
-                        <div className="space-y-2">
-                            <Label htmlFor="image-upload">Upload Image</Label>
-                            <Input
-                                id="image-upload"
-                                type="file"
-                                accept="image/*"
-                                onChange={handleImageUpload}
-                            />
-                        </div>
+                        {/* Image Layer Controls - Only show upload if no image exists */}
+                        {!editingState.imageData && (
+                            <div className="space-y-2">
+                                <Label htmlFor="image-upload">Upload Image</Label>
+                                <Input
+                                    id="image-upload"
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleImageUpload}
+                                />
+                            </div>
+                        )}
                     </>
                 )}
-
-                {/* Font Size */}
-                <div className="space-y-2">
-                    <Label>Font Size: {editingState.fontSize}px</Label>
-                    <Slider
-                        value={[editingState.fontSize]}
-                        onValueChange={([value]: number[]) => layerStore.setFontSize(value)}
-                        min={6}
-                        max={24}
-                        step={1}
-                    />
-                </div>
 
                 {/* Position */}
                 <div className="space-y-2">
@@ -145,29 +143,6 @@ export const LayerControls = observer(() => {
                     </Select>
                 </div>
 
-                {/* Offset Position (read-only display) */}
-                <div className="space-y-2">
-                    <Label>Offset Position</Label>
-                    <div className="text-sm text-muted-foreground px-3 py-2 border rounded-md bg-muted/50">
-                        X: {editingState.offsetX}px, Y: {editingState.offsetY}px
-                    </div>
-                    <p className="text-xs text-muted-foreground italic">
-                        Use the Move tool to reposition by dragging on the canvas
-                    </p>
-                </div>
-
-                {/* Scale */}
-                <div className="space-y-2">
-                    <Label>Scale: {editingState.scale.toFixed(1)}x</Label>
-                    <Slider
-                        value={[editingState.scale]}
-                        onValueChange={([value]: number[]) => layerStore.setScale(value)}
-                        min={0.5}
-                        max={3}
-                        step={0.1}
-                    />
-                </div>
-
                 {/* Parallax Strength */}
                 <div className="space-y-2">
                     <Label>Parallax Strength: {editingState.parallaxStrength.toFixed(1)}</Label>
@@ -180,10 +155,12 @@ export const LayerControls = observer(() => {
                     />
                 </div>
 
-                {/* Save Button */}
-                <Button onClick={() => layerStore.saveCurrentLayer()} className="w-full">
-                    Save Layer
-                </Button>
+                {/* Save Button - Only show if auto-save is not set to always-save */}
+                {showSaveButton && (
+                    <Button onClick={() => layerStore.saveCurrentLayer()} className="w-full">
+                        Save Layer
+                    </Button>
+                )}
             </CardContent>
         </Card>
     );

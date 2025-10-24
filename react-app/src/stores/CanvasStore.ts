@@ -24,8 +24,9 @@ export class CanvasStore {
                 return {
                     maxWidth: '800px',
                     maxHeight: '800px',
-                    width: '100vmin',
-                    height: '100vmin',
+                    width: 'min(calc(100vw - 400px), 800px)',
+                    height: 'min(calc(100vh - 200px), 800px)',
+                    aspectRatio: '1 / 1',
                     border: '2px solid #000000',
                     margin: 'auto',
                 };
@@ -33,8 +34,8 @@ export class CanvasStore {
                 return {
                     maxWidth: '1200px',
                     maxHeight: '675px',
-                    width: 'min(90vw, 1200px)',
-                    height: 'calc(min(90vw, 1200px) * 9 / 16)',
+                    width: 'min(calc(100vw - 400px), 1200px)',
+                    height: 'calc(min(calc(100vw - 400px), 1200px) * 9 / 16)',
                     border: '2px solid #000000',
                     margin: 'auto',
                 };
@@ -42,8 +43,8 @@ export class CanvasStore {
                 return {
                     maxWidth: '675px',
                     maxHeight: '1200px',
-                    width: 'calc(min(90vh, 1200px) * 9 / 16)',
-                    height: 'min(90vh, 1200px)',
+                    width: 'min(calc(100vw - 400px), 675px)',
+                    height: 'min(calc(100vh - 200px), 1200px)',
                     border: '2px solid #000000',
                     margin: 'auto',
                 };

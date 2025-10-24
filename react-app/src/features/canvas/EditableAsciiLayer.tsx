@@ -1,5 +1,5 @@
 import { observer } from 'mobx-react-lite';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { AsciiLayer as AsciiLayerType } from '@/types';
 import { useEditingStore, useLayerStore } from '@/stores';
 
@@ -56,9 +56,71 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
     const [cursorPos, setCursorPos] = useState<{ x: number, y: number } | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState<{ x: number, y: number, offsetX: number, offsetY: number } | null>(null);
+    const [isScaling, setIsScaling] = useState(false);
+    const [scaleHandle, setScaleHandle] = useState<string | null>(null);
+    const [scaleStart, setScaleStart] = useState<{ x: number, y: number, scale: number } | null>(null);
 
     const { activeTool, brushSettings } = editingStore;
     const isActive = layerStore.activeLayerId === layer.id;
+
+    // Handle window mouse events for scaling (to prevent losing the handle on fast drags)
+    const handleWindowMouseMove = useCallback((e: MouseEvent) => {
+        if (!isScaling || !scaleStart || !scaleHandle) return;
+
+        const deltaX = e.clientX - scaleStart.x;
+        const deltaY = e.clientY - scaleStart.y;
+
+        let scaleFactorX = 1;
+        let scaleFactorY = 1;
+
+        // Calculate scale factor based on handle position and direction
+        // Dragging away from center = increase scale, toward center = decrease scale
+        if (scaleHandle.includes('e')) {
+            scaleFactorX = 1 + (deltaX / 200);
+        } else if (scaleHandle.includes('w')) {
+            scaleFactorX = 1 + (-deltaX / 200);
+        }
+
+        if (scaleHandle.includes('s')) {
+            scaleFactorY = 1 + (deltaY / 200);
+        } else if (scaleHandle.includes('n')) {
+            scaleFactorY = 1 + (-deltaY / 200);
+        }
+
+        // For corner handles, use average of both factors; for side handles, use the relevant one
+        let scaleFactor = 1;
+        if (scaleHandle.length === 2) {
+            // Corner handle - average both directions
+            scaleFactor = (scaleFactorX + scaleFactorY) / 2;
+        } else {
+            // Side handle - use the relevant direction
+            scaleFactor = scaleHandle.includes('e') || scaleHandle.includes('w') ? scaleFactorX : scaleFactorY;
+        }
+
+        const newScale = Math.max(0.1, Math.min(5, scaleStart.scale * scaleFactor));
+        layerStore.setScale(newScale);
+    }, [isScaling, scaleStart, scaleHandle, layerStore]);
+
+    const handleWindowMouseUp = useCallback(() => {
+        if (isScaling && activeTool === 'scale') {
+            setIsScaling(false);
+            setScaleHandle(null);
+            setScaleStart(null);
+            layerStore.saveCurrentLayer();
+        }
+    }, [isScaling, activeTool, layerStore]);
+
+    // Attach/detach window event listeners for scaling
+    useEffect(() => {
+        if (isScaling) {
+            window.addEventListener('mousemove', handleWindowMouseMove);
+            window.addEventListener('mouseup', handleWindowMouseUp);
+            return () => {
+                window.removeEventListener('mousemove', handleWindowMouseMove);
+                window.removeEventListener('mouseup', handleWindowMouseUp);
+            };
+        }
+    }, [isScaling, handleWindowMouseMove, handleWindowMouseUp]);
 
     // Convert mouse coordinates to lattice grid coordinates
     const getGridCoords = (e: React.MouseEvent): { x: number, y: number } | null => {
@@ -127,6 +189,11 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
             return;
         }
 
+        // Handle scale tool - handled by scale handles
+        if (activeTool === 'scale') {
+            return;
+        }
+
         const coords = getGridCoords(e);
         if (!coords) return;
 
@@ -156,10 +223,12 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
             return;
         }
 
+        // Scaling is handled by window event listeners, not here
+
         const coords = getGridCoords(e);
         setCursorPos(coords);
 
-        if (!isActive || !isDrawing || activeTool === 'select' || activeTool === 'color-picker' || activeTool === 'move') return;
+        if (!isActive || !isDrawing || activeTool === 'select' || activeTool === 'color-picker' || activeTool === 'move' || activeTool === 'scale') return;
 
         if (coords) {
             applyBrush(coords.x, coords.y);
@@ -174,6 +243,8 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
             return;
         }
 
+        // Scaling mouseup is handled by window event listener
+
         if (isDrawing) {
             setIsDrawing(false);
             layerStore.saveCurrentLayer();
@@ -186,6 +257,7 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
             setIsDragging(false);
             setDragStart(null);
         }
+        // Don't stop scaling on mouse leave - let window event handle it
         if (isDrawing) {
             setIsDrawing(false);
             layerStore.saveCurrentLayer();
@@ -194,7 +266,7 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
 
     // Render cursor preview
     const renderCursorPreview = () => {
-        if (!cursorPos || !isActive || activeTool === 'select' || activeTool === 'move' || !containerRef.current) return null;
+        if (!cursorPos || !isActive || activeTool === 'select' || activeTool === 'move' || activeTool === 'scale' || !containerRef.current) return null;
 
         const rect = containerRef.current.getBoundingClientRect();
 
@@ -232,6 +304,57 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
         return <div style={cursorStyle} />;
     };
 
+    // Render scale handles
+    const renderScaleHandles = () => {
+        if (!isActive || activeTool !== 'scale' || !containerRef.current) return null;
+
+        const handleSize = 12;
+        const handleStyle = (position: string, cursor: string): React.CSSProperties => ({
+            position: 'absolute',
+            width: `${handleSize}px`,
+            height: `${handleSize}px`,
+            backgroundColor: '#4a9eff',
+            border: '2px solid white',
+            borderRadius: '50%',
+            cursor,
+            zIndex: 1001,
+            ...(position === 'nw' && { top: `-${handleSize / 2}px`, left: `-${handleSize / 2}px` }),
+            ...(position === 'n' && { top: `-${handleSize / 2}px`, left: '50%', transform: 'translateX(-50%)' }),
+            ...(position === 'ne' && { top: `-${handleSize / 2}px`, right: `-${handleSize / 2}px` }),
+            ...(position === 'e' && { top: '50%', right: `-${handleSize / 2}px`, transform: 'translateY(-50%)' }),
+            ...(position === 'se' && { bottom: `-${handleSize / 2}px`, right: `-${handleSize / 2}px` }),
+            ...(position === 's' && { bottom: `-${handleSize / 2}px`, left: '50%', transform: 'translateX(-50%)' }),
+            ...(position === 'sw' && { bottom: `-${handleSize / 2}px`, left: `-${handleSize / 2}px` }),
+            ...(position === 'w' && { top: '50%', left: `-${handleSize / 2}px`, transform: 'translateY(-50%)' }),
+        });
+
+        const handleMouseDown = (position: string) => (e: React.MouseEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsScaling(true);
+            setScaleHandle(position);
+            const currentLayer = layerStore.editingState || layer;
+            setScaleStart({
+                x: e.clientX,
+                y: e.clientY,
+                scale: currentLayer.scale
+            });
+        };
+
+        return (
+            <>
+                <div style={handleStyle('nw', 'nw-resize')} onMouseDown={handleMouseDown('nw')} />
+                <div style={handleStyle('n', 'n-resize')} onMouseDown={handleMouseDown('n')} />
+                <div style={handleStyle('ne', 'ne-resize')} onMouseDown={handleMouseDown('ne')} />
+                <div style={handleStyle('e', 'e-resize')} onMouseDown={handleMouseDown('e')} />
+                <div style={handleStyle('se', 'se-resize')} onMouseDown={handleMouseDown('se')} />
+                <div style={handleStyle('s', 's-resize')} onMouseDown={handleMouseDown('s')} />
+                <div style={handleStyle('sw', 'sw-resize')} onMouseDown={handleMouseDown('sw')} />
+                <div style={handleStyle('w', 'w-resize')} onMouseDown={handleMouseDown('w')} />
+            </>
+        );
+    };
+
     const isInteractive = isActive && activeTool !== 'select';
     const isMoveMode = isActive && activeTool === 'move';
 
@@ -261,7 +384,7 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
 
     const containerStyle: React.CSSProperties = {
         position: 'absolute',
-        transition: isDragging ? 'none' : 'transform 0.05s ease-out',
+        transition: isDragging || isScaling ? 'none' : 'transform 0.05s ease-out',
         zIndex, // Keep original z-index for consistent layer ordering
         transformOrigin,
         transform,
@@ -293,6 +416,20 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseLeave}
         >
+            {activeTool === 'scale' && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        border: '2px dashed #4a9eff',
+                        pointerEvents: 'none',
+                        zIndex: 1000,
+                    }}
+                />
+            )}
             {lattice.cells.map((row, y) => (
                 <div key={y} style={{ height: `${fontSize}px`, lineHeight: 1, display: 'block' }}>
                     {row.map((cell, x) => {
@@ -327,6 +464,7 @@ export const EditableAsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y:
                 </div>
             ))}
             {renderCursorPreview()}
+            {renderScaleHandles()}
         </div>
     );
 });

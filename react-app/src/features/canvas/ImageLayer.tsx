@@ -60,9 +60,11 @@ export const ImageLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 }, di
 
     // Apply tint using CSS filter if tintColor is set
     const imgStyle: React.CSSProperties = {
-        maxWidth: '100%',
-        maxHeight: '100%',
         display: 'block',
+        width: 'auto',
+        height: 'auto',
+        maxWidth: 'none',
+        maxHeight: 'none',
     };
 
     return (

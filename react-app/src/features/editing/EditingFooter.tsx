@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { MousePointer, Move, Eraser, Paintbrush, Droplet, Pipette, Code } from 'lucide-react';
+import { MousePointer, Move, Maximize2, Eraser, Paintbrush, Droplet, Pipette, Code } from 'lucide-react';
 import { AsciiEditorDialog } from './AsciiEditorDialog';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -42,6 +42,7 @@ export const EditingFooter = observer(() => {
     const toolTips = {
         select: 'Select (no editing)',
         move: 'Move (drag to reposition)',
+        scale: 'Scale (drag handles to resize)',
         erase: 'Erase',
         'paint-color': 'Paint Color',
         'paint-alpha': 'Paint Alpha',
@@ -50,10 +51,10 @@ export const EditingFooter = observer(() => {
 
     return (
         <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t shadow-lg z-50">
-            <div className="px-6 py-3">
-                <div className="flex items-center gap-6 justify-between max-w-screen-2xl mx-auto">
+            <div className="px-4 py-3 overflow-x-auto">
+                <div className="flex items-center gap-4 lg:gap-6 min-w-max max-w-screen-2xl mx-auto">
                     {/* Layer Type Badge */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-shrink-0">
                         <Badge variant={isAsciiLayer ? 'default' : 'secondary'} className="h-8 px-3">
                             {isAsciiLayer ? 'ASCII' : 'Image'}
                         </Badge>
@@ -66,86 +67,96 @@ export const EditingFooter = observer(() => {
                                     onClick={() => setShowEditorDialog(true)}
                                     variant="outline"
                                     size="sm"
-                                    className="h-8"
+                                    className="h-8 whitespace-nowrap"
                                 >
                                     <Code className="mr-2 h-3.5 w-3.5" />
-                                    Edit Code
+                                    <span className="hidden sm:inline">Edit Code</span>
+                                    <span className="sm:hidden">Code</span>
                                 </Button>
                             </>
                         )}
                     </div>
 
                     {/* Tool Buttons */}
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
                         <Button
-                            variant={activeTool === 'select' ? 'default' : 'ghost'}
+                            variant="ghost"
                             size="sm"
                             onClick={() => editingStore.setActiveTool('select')}
                             title={toolTips.select}
-                            className="h-8 w-8 p-0"
+                            className="h-8 w-8 p-0 flex-shrink-0"
                         >
-                            <MousePointer className="h-4 w-4" />
+                            <MousePointer className={activeTool === 'select' ? 'h-4 w-4 text-orange-500' : 'h-4 w-4'} />
                         </Button>
                         <Button
-                            variant={activeTool === 'move' ? 'default' : 'ghost'}
+                            variant="ghost"
                             size="sm"
                             onClick={() => editingStore.setActiveTool('move')}
                             title={toolTips.move}
-                            className="h-8 w-8 p-0"
+                            className="h-8 w-8 p-0 flex-shrink-0"
                         >
-                            <Move className="h-4 w-4" />
+                            <Move className={activeTool === 'move' ? 'h-4 w-4 text-orange-500' : 'h-4 w-4'} />
                         </Button>
                         <Button
-                            variant={activeTool === 'erase' ? 'default' : 'ghost'}
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => editingStore.setActiveTool('scale')}
+                            title={toolTips.scale}
+                            className="h-8 w-8 p-0 flex-shrink-0"
+                        >
+                            <Maximize2 className={activeTool === 'scale' ? 'h-4 w-4 text-orange-500' : 'h-4 w-4'} />
+                        </Button>
+                        <Button
+                            variant="ghost"
                             size="sm"
                             onClick={() => editingStore.setActiveTool('erase')}
                             title={toolTips.erase}
-                            className="h-8 w-8 p-0"
+                            className="h-8 w-8 p-0 flex-shrink-0"
                         >
-                            <Eraser className="h-4 w-4" />
+                            <Eraser className={activeTool === 'erase' ? 'h-4 w-4 text-orange-500' : 'h-4 w-4'} />
                         </Button>
                         <Button
-                            variant={activeTool === 'paint-color' ? 'default' : 'ghost'}
+                            variant="ghost"
                             size="sm"
                             onClick={() => editingStore.setActiveTool('paint-color')}
                             title={toolTips['paint-color']}
-                            className="h-8 w-8 p-0"
+                            className="h-8 w-8 p-0 flex-shrink-0"
                         >
-                            <Paintbrush className="h-4 w-4" />
+                            <Paintbrush className={activeTool === 'paint-color' ? 'h-4 w-4 text-orange-500' : 'h-4 w-4'} />
                         </Button>
                         <Button
-                            variant={activeTool === 'paint-alpha' ? 'default' : 'ghost'}
+                            variant="ghost"
                             size="sm"
                             onClick={() => editingStore.setActiveTool('paint-alpha')}
                             title={toolTips['paint-alpha']}
-                            className="h-8 w-8 p-0"
+                            className="h-8 w-8 p-0 flex-shrink-0"
                         >
-                            <Droplet className="h-4 w-4" />
+                            <Droplet className={activeTool === 'paint-alpha' ? 'h-4 w-4 text-orange-500' : 'h-4 w-4'} />
                         </Button>
                         <Button
-                            variant={activeTool === 'color-picker' ? 'default' : 'ghost'}
+                            variant="ghost"
                             size="sm"
                             onClick={() => editingStore.setActiveTool('color-picker')}
                             title={toolTips['color-picker']}
-                            className="h-8 w-8 p-0"
+                            className="h-8 w-8 p-0 flex-shrink-0"
                         >
-                            <Pipette className="h-4 w-4" />
+                            <Pipette className={activeTool === 'color-picker' ? 'h-4 w-4 text-orange-500' : 'h-4 w-4'} />
                         </Button>
                     </div>
 
                     {/* Brush Radius Slider - Compact */}
                     {(activeTool === 'erase' || activeTool === 'paint-color' || activeTool === 'paint-alpha') && (
                         <>
-                            <Separator orientation="vertical" className="h-8" />
-                            <div className="flex items-center gap-3 min-w-[180px]">
-                                <Label className="text-xs whitespace-nowrap">Radius: {brushSettings.radius}</Label>
+                            <Separator orientation="vertical" className="h-8 flex-shrink-0" />
+                            <div className="flex items-center gap-2 lg:gap-3 min-w-[160px] lg:min-w-[180px] flex-shrink-0">
+                                <Label className="text-xs whitespace-nowrap">R: {brushSettings.radius}</Label>
                                 <Slider
                                     value={[brushSettings.radius]}
                                     onValueChange={([value]: number[]) => editingStore.setBrushRadius(value)}
                                     min={1}
                                     max={maxBrushRadius}
                                     step={1}
-                                    className="w-24"
+                                    className="w-20 lg:w-24"
                                 />
                             </div>
                         </>
@@ -154,10 +165,10 @@ export const EditingFooter = observer(() => {
                     {/* Color Pickers - Compact Squares */}
                     {(activeTool === 'paint-color' || activeTool === 'color-picker') && (
                         <>
-                            <Separator orientation="vertical" className="h-8" />
+                            <Separator orientation="vertical" className="h-8 flex-shrink-0" />
                             <Popover open={showColorPicker} onOpenChange={setShowColorPicker}>
                                 <PopoverTrigger asChild>
-                                    <Button variant="outline" size="sm" className="h-8 px-3 gap-2">
+                                    <Button variant="outline" size="sm" className="h-8 px-2 lg:px-3 gap-1.5 lg:gap-2 flex-shrink-0">
                                         <div className="flex gap-1.5 items-center">
                                             {/* Text Color Square */}
                                             <div
@@ -181,7 +192,7 @@ export const EditingFooter = observer(() => {
                                                 />
                                             )}
                                         </div>
-                                        <span className="text-xs">Colors</span>
+                                        <span className="text-xs hidden sm:inline">Colors</span>
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-64" side="top" align="center">
@@ -231,16 +242,16 @@ export const EditingFooter = observer(() => {
                     {/* Alpha Slider */}
                     {(activeTool === 'paint-alpha' || activeTool === 'paint-color') && (
                         <>
-                            <Separator orientation="vertical" className="h-8" />
-                            <div className="flex items-center gap-3 min-w-[160px]">
-                                <Label className="text-xs whitespace-nowrap">Alpha: {brushSettings.currentAlpha.toFixed(2)}</Label>
+                            <Separator orientation="vertical" className="h-8 flex-shrink-0" />
+                            <div className="flex items-center gap-2 lg:gap-3 min-w-[140px] lg:min-w-[160px] flex-shrink-0">
+                                <Label className="text-xs whitespace-nowrap">A: {brushSettings.currentAlpha.toFixed(2)}</Label>
                                 <Slider
                                     value={[brushSettings.currentAlpha]}
                                     onValueChange={([value]: number[]) => editingStore.setCurrentAlpha(value)}
                                     min={0}
                                     max={1}
                                     step={0.05}
-                                    className="w-20"
+                                    className="w-16 lg:w-20"
                                 />
                             </div>
                         </>
@@ -249,15 +260,15 @@ export const EditingFooter = observer(() => {
                     {/* Full Image Tint */}
                     {editingState && (
                         <>
-                            <Separator orientation="vertical" className="h-8" />
+                            <Separator orientation="vertical" className="h-8 flex-shrink-0" />
                             <Popover>
                                 <PopoverTrigger asChild>
-                                    <Button variant="outline" size="sm" className="h-8 px-3 gap-2">
+                                    <Button variant="outline" size="sm" className="h-8 px-2 lg:px-3 gap-1.5 lg:gap-2 flex-shrink-0">
                                         <div
                                             className="w-5 h-5 rounded border-2 border-border"
                                             style={{ backgroundColor: editingState.tintColor || '#ffffff' }}
                                         />
-                                        <span className="text-xs">Tint</span>
+                                        <span className="text-xs hidden sm:inline">Tint</span>
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-64" side="top" align="end">
@@ -303,19 +314,21 @@ export const EditingFooter = observer(() => {
                     )}
 
                     {/* Current Tool Info */}
-                    <div className="flex-1 text-right">
-                        <p className="text-xs text-muted-foreground">
+                    <div className="flex-shrink-0 hidden xl:block min-w-[200px]">
+                        <p className="text-xs text-muted-foreground text-right">
                             {activeTool === 'select'
                                 ? 'No tool selected'
                                 : activeTool === 'move'
-                                    ? 'Use the Move tool by dragging on the canvas'
-                                    : activeTool === 'erase'
-                                        ? 'Click and drag to erase'
-                                        : activeTool === 'paint-color'
-                                            ? 'Click and drag to paint color'
-                                            : activeTool === 'paint-alpha'
-                                                ? 'Click and drag to adjust transparency'
-                                                : 'Click to pick a color from the canvas'
+                                    ? 'Drag to reposition'
+                                    : activeTool === 'scale'
+                                        ? 'Drag handles to scale'
+                                        : activeTool === 'erase'
+                                            ? 'Click and drag to erase'
+                                            : activeTool === 'paint-color'
+                                                ? 'Click and drag to paint'
+                                                : activeTool === 'paint-alpha'
+                                                    ? 'Click and drag to adjust alpha'
+                                                    : 'Click to pick a color'
                             }
                         </p>
                     </div>

@@ -1,53 +1,16 @@
 import { observer } from 'mobx-react-lite';
-import { useStores } from '@/stores';
-import { Button } from '@/components/ui/button';
+import { useCanvasStore, useStores } from '@/stores';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Download, Upload, RotateCcw } from 'lucide-react';
-import { downloadProjectFile, loadProjectFile, loadProjectIntoStores } from '@/utils/projectSerializer';
-import { useRef } from 'react';
+import { Select, SelectItem, SelectContent, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Resolution } from '@/types';
 
 export const ProjectControls = observer(() => {
     const stores = useStores();
-    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleDownload = () => {
-        try {
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-            downloadProjectFile(stores, `ascii-art-${timestamp}.json`);
-        } catch (error) {
-            alert('Failed to download project file');
-            console.error(error);
-        }
-    };
+    const canvasStore = useCanvasStore();
 
-    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        try {
-            const projectState = await loadProjectFile(file);
-
-            if (stores.layerStore.hasUnsavedChanges) {
-                const confirm = window.confirm('You have unsaved changes. Loading a project will discard them. Continue?');
-                if (!confirm) return;
-            }
-
-            loadProjectIntoStores(projectState, stores);
-            alert('Project loaded successfully!');
-        } catch (error) {
-            alert('Failed to load project file');
-            console.error(error);
-        }
-
-        e.target.value = '';
-    };
-
-    const handleResetAutoSave = () => {
-        stores.layerStore.resetAutoSavePreference();
-        alert('Auto-save preference has been reset. You will be prompted again when switching layers with unsaved changes.');
-    };
 
     return (
         <Card>
@@ -67,41 +30,25 @@ export const ProjectControls = observer(() => {
                     />
                 </div>
 
-                <Button onClick={handleDownload} className="w-full" variant="outline">
-                    <Upload className="mr-2 h-4 w-4" />
-                    Export Project
-                </Button>
-
-                <Button onClick={() => fileInputRef.current?.click()} className="w-full" variant="outline">
-                    <Download className="mr-2 h-4 w-4" />
-                    Import Project
-                </Button>
-
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".json"
-                    onChange={handleFileSelect}
-                    style={{ display: 'none' }}
-                />
-
                 <p className="text-xs text-muted-foreground text-center pt-2">
                     Your project auto-saves every minute
                 </p>
-
-                <div className="space-y-2 pt-4 border-t">
-                    <Label>Layer Auto-Save</Label>
-                    <Button
-                        onClick={handleResetAutoSave}
-                        variant="outline"
-                        className="w-full"
+                <div className="space-y-2">
+                    <Label>Resolution</Label>
+                    <Select
+                        value={canvasStore.resolution}
+                        onValueChange={(value: string) => canvasStore.setResolution(value as Resolution)}
                     >
-                        <RotateCcw className="mr-2 h-4 w-4" />
-                        Reset Auto-Save Preference
-                    </Button>
-                    <p className="text-xs text-muted-foreground">
-                        Reset your saved preference for handling unsaved layer changes.
-                    </p>
+                        <SelectTrigger>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="responsive">Responsive</SelectItem>
+                            <SelectItem value="square">Square</SelectItem>
+                            <SelectItem value="landscape">Landscape</SelectItem>
+                            <SelectItem value="portrait">Portrait</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </CardContent>
         </Card>

@@ -48,9 +48,10 @@ export const CanvasContainer = observer(() => {
                 ...containerStyles,
                 position: 'relative',
                 backgroundColor: canvasStore.backgroundColor,
-                borderRadius: '8px',
+                borderRadius: '4px',
                 overflow: 'hidden',
                 boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+                zIndex: 0,
             }}
         >
             {sortedLayers.map(layer => {

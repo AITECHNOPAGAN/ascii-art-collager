@@ -66,7 +66,7 @@ export const LayerItem = observer(({ layerId }: LayerItemProps) => {
             ref={setNodeRef}
             style={style}
             className={`
-        bg-secondary/50 border-2 p-3 cursor-pointer transition-all rounded-none
+        bg-secondary/50 border p-3 cursor-pointer transition-all rounded-none
         ${isActive ? 'border-orange-500 bg-orange-500/10 shadow-lg shadow-orange-500/20' : 'border-border hover:border-border/60 hover:bg-secondary/70'}
       `}
             onClick={() => layerStore.setActiveLayer(layerId)}

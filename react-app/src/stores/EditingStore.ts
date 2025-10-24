@@ -45,7 +45,7 @@ export class EditingStore {
     };
 
     get isDrawingTool(): boolean {
-        return this.activeTool === 'erase' || this.activeTool === 'paint-color' || this.activeTool === 'paint-alpha' || this.activeTool === 'move';
+        return this.activeTool === 'erase' || this.activeTool === 'paint-color' || this.activeTool === 'paint-alpha' || this.activeTool === 'move' || this.activeTool === 'scale';
     }
 }
 

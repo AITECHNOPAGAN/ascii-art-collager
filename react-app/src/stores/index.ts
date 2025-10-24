@@ -3,6 +3,7 @@ import { CanvasStore } from './CanvasStore';
 import { EffectsStore } from './EffectsStore';
 import { EditingStore } from './EditingStore';
 import { CustomStylesStore } from './CustomStylesStore';
+import { SettingsStore } from './SettingsStore';
 import { createContext, useContext } from 'react';
 
 export class RootStore {
@@ -11,6 +12,7 @@ export class RootStore {
     effectsStore: EffectsStore;
     editingStore: EditingStore;
     customStylesStore: CustomStylesStore;
+    settingsStore: SettingsStore;
 
     constructor() {
         this.layerStore = new LayerStore();
@@ -18,6 +20,7 @@ export class RootStore {
         this.effectsStore = new EffectsStore();
         this.editingStore = new EditingStore();
         this.customStylesStore = new CustomStylesStore();
+        this.settingsStore = new SettingsStore();
     }
 }
 
@@ -38,4 +41,5 @@ export const useCanvasStore = () => useStores().canvasStore;
 export const useEffectsStore = () => useStores().effectsStore;
 export const useEditingStore = () => useStores().editingStore;
 export const useCustomStylesStore = () => useStores().customStylesStore;
+export const useSettingsStore = () => useStores().settingsStore;
 

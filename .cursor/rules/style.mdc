@@ -1,0 +1,8 @@
+---
+alwaysApply: true
+---
+
+- please don't use rounded, we use design with rounded-none
+- please use zinc color palette
+- use shadcn components available
+- we slightly prefer flex + gap instead of margins
