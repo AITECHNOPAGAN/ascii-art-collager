@@ -3,7 +3,12 @@ export type LayerType = 'ascii' | 'image';
 
 export type Position = 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
-export type Resolution = 'responsive' | 'square' | 'landscape' | 'portrait';
+export type Resolution = 'responsive' | 'square' | 'landscape' | 'portrait' | 'custom';
+
+export interface CustomResolution {
+    width: number;
+    height: number;
+}
 
 // Character cell for ASCII lattice layers
 export interface CharacterCell {
@@ -71,8 +76,10 @@ export interface ProjectState {
     version: string;
     layers: Layer[];
     canvasResolution: Resolution;
+    customResolution?: CustomResolution; // Custom resolution dimensions when canvasResolution is 'custom'
     canvasBackgroundColor?: string; // Optional for backwards compatibility
     customCSS?: string; // Custom CSS for class names
+    parallaxEnabled?: boolean; // Optional for backwards compatibility
     metadata: {
         createdAt: string;
         modifiedAt: string;
@@ -82,6 +89,7 @@ export interface ProjectState {
 
 export interface ExportConfig {
     resolution: Resolution;
+    customResolution?: CustomResolution; // Custom resolution dimensions when resolution is 'custom'
     parallaxEnabled: boolean;
     includeGeneratorLink: boolean;
     backgroundColor?: string;

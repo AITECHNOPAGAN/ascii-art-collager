@@ -19,8 +19,12 @@ export function serializeProject(rootStore: RootStore): ProjectState {
         version: PROJECT_VERSION,
         layers: rootStore.layerStore.layers,
         canvasResolution: rootStore.canvasStore.resolution,
+        customResolution: rootStore.canvasStore.resolution === 'custom'
+            ? rootStore.canvasStore.customResolution
+            : undefined,
         canvasBackgroundColor: rootStore.canvasStore.backgroundColor,
         customCSS: rootStore.customStylesStore.customCSS,
+        parallaxEnabled: rootStore.effectsStore.parallaxEnabled,
         metadata: {
             createdAt: new Date().toISOString(),
             modifiedAt: new Date().toISOString(),
@@ -134,6 +138,11 @@ export function loadProjectIntoStores(projectState: ProjectState, rootStore: Roo
         // Load canvas settings
         rootStore.canvasStore.setResolution(projectState.canvasResolution);
 
+        // Load custom resolution if present
+        if (projectState.customResolution !== undefined) {
+            rootStore.canvasStore.setCustomResolution(projectState.customResolution);
+        }
+
         // Load canvas background color (with default fallback for older projects)
         if (projectState.canvasBackgroundColor !== undefined) {
             rootStore.canvasStore.setBackgroundColor(projectState.canvasBackgroundColor);
@@ -148,6 +157,11 @@ export function loadProjectIntoStores(projectState: ProjectState, rootStore: Roo
         // Load custom CSS if present
         if (projectState.customCSS !== undefined) {
             rootStore.customStylesStore.loadFromJSON({ customCSS: projectState.customCSS });
+        }
+
+        // Load parallax effect if present
+        if (projectState.parallaxEnabled !== undefined) {
+            rootStore.effectsStore.loadFromJSON({ parallaxEnabled: projectState.parallaxEnabled });
         }
     } catch (error) {
         console.error('Failed to load project into stores:', error);

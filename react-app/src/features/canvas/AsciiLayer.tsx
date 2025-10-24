@@ -80,7 +80,6 @@ export const AsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 }, di
 
     const containerStyle: React.CSSProperties = {
         position: 'absolute',
-        transition: 'transform 0.05s ease-out',
         zIndex,
         transformOrigin,
         transform,
@@ -99,7 +98,15 @@ export const AsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 }, di
     };
 
     return (
-        <div className="ascii-layer" style={containerStyle}>
+        <div
+            className="ascii-layer"
+            style={containerStyle}
+            data-parallax={layer.parallaxStrength}
+            data-offset-x={offsetX}
+            data-offset-y={offsetY}
+            data-scale={scale}
+            data-position={position}
+        >
             {lattice.cells.map((row, y) => (
                 <div key={y} style={{ height: `${fontSize}px`, lineHeight: 1, display: 'block' }}>
                     {row.map((cell, x) => {

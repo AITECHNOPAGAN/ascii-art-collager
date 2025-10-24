@@ -12,15 +12,16 @@ export const CanvasContainer = observer(() => {
     const effectsStore = useEffectsStore();
     const editingStore = useEditingStore();
     const containerRef = useRef<HTMLDivElement>(null);
+    const mousePositionRef = useRef({ x: 0.5, y: 0.5 });
+    const animationFrameRef = useRef<number | null>(null);
 
     useEffect(() => {
         const handleMouseMove = (e: MouseEvent) => {
             if (!effectsStore.parallaxEnabled || !containerRef.current) return;
 
             const rect = containerRef.current.getBoundingClientRect();
-            const x = (e.clientX - rect.left) / rect.width;
-            const y = (e.clientY - rect.top) / rect.height;
-            effectsStore.updateMousePosition(x, y);
+            mousePositionRef.current.x = (e.clientX - rect.left) / rect.width;
+            mousePositionRef.current.y = (e.clientY - rect.top) / rect.height;
         };
 
         if (effectsStore.parallaxEnabled) {
@@ -29,6 +30,46 @@ export const CanvasContainer = observer(() => {
 
         return () => {
             document.removeEventListener('mousemove', handleMouseMove);
+        };
+    }, [effectsStore.parallaxEnabled]);
+
+    // Separate effect for parallax animation using requestAnimationFrame
+    useEffect(() => {
+        if (!effectsStore.parallaxEnabled) {
+            return;
+        }
+
+        const updateParallax = () => {
+            if (!containerRef.current) return;
+
+            const layers = containerRef.current.querySelectorAll('.ascii-layer, .image-layer');
+            layers.forEach((layerElement) => {
+                const htmlElement = layerElement as HTMLElement;
+                const parallaxStrength = parseFloat(htmlElement.dataset.parallax || '0');
+                const offsetX = parseFloat(htmlElement.dataset.offsetX || '0');
+                const offsetY = parseFloat(htmlElement.dataset.offsetY || '0');
+                const scale = parseFloat(htmlElement.dataset.scale || '1');
+                const position = htmlElement.dataset.position || 'center';
+
+                const translateX = offsetX + (mousePositionRef.current.x - 0.5) * parallaxStrength * 100;
+                const translateY = offsetY + (mousePositionRef.current.y - 0.5) * parallaxStrength * 100;
+
+                if (position === 'center') {
+                    htmlElement.style.transform = `translate(calc(-50% + ${translateX}px), calc(-50% + ${translateY}px)) scale(${scale})`;
+                } else {
+                    htmlElement.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+                }
+            });
+
+            animationFrameRef.current = requestAnimationFrame(updateParallax);
+        };
+
+        animationFrameRef.current = requestAnimationFrame(updateParallax);
+
+        return () => {
+            if (animationFrameRef.current !== null) {
+                cancelAnimationFrame(animationFrameRef.current);
+            }
         };
     }, [effectsStore.parallaxEnabled]);
 
@@ -58,10 +99,8 @@ export const CanvasContainer = observer(() => {
                 const layerData = layerStore.getLayerData(layer.id);
                 if (!layerData || !layerData.visibility) return null;
 
-                const parallaxOffset = effectsStore.parallaxEnabled ? {
-                    x: (effectsStore.mouseX - 0.5) * layerData.parallaxStrength * 100,
-                    y: (effectsStore.mouseY - 0.5) * layerData.parallaxStrength * 100,
-                } : { x: 0, y: 0 };
+                // No parallax offset in React - handled by requestAnimationFrame
+                const parallaxOffset = { x: 0, y: 0 };
 
                 const isActive = layerStore.activeLayerId === layer.id;
                 const isEditMode = editingStore.activeTool !== 'select';

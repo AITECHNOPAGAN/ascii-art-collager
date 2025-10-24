@@ -43,7 +43,6 @@ export const ImageLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 }, di
 
     const style: React.CSSProperties = {
         position: 'absolute',
-        transition: 'transform 0.05s ease-out',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -68,7 +67,15 @@ export const ImageLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 }, di
     };
 
     return (
-        <div className="image-layer" style={style}>
+        <div
+            className="image-layer"
+            style={style}
+            data-parallax={layer.parallaxStrength}
+            data-offset-x={offsetX}
+            data-offset-y={offsetY}
+            data-scale={scale}
+            data-position={position}
+        >
             <img
                 src={displayImage}
                 style={imgStyle}

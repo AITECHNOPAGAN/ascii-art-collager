@@ -24,6 +24,7 @@ export const ExportPanel = observer(() => {
 
         const htmlContent = generateExportHTML(layerStore.layers, {
             resolution: canvasStore.resolution,
+            customResolution: canvasStore.resolution === 'custom' ? canvasStore.customResolution : undefined,
             parallaxEnabled: effectsStore.parallaxEnabled,
             includeGeneratorLink,
             backgroundColor: canvasStore.backgroundColor,
@@ -54,6 +55,7 @@ export const ExportPanel = observer(() => {
                             <SelectItem value="square">Square</SelectItem>
                             <SelectItem value="landscape">Landscape</SelectItem>
                             <SelectItem value="portrait">Portrait</SelectItem>
+                            <SelectItem value="custom">Custom</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>

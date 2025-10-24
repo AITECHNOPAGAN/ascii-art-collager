@@ -9,15 +9,17 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Download, Upload, FileCode, Settings, Menu } from 'lucide-react';
+import { Download, Upload, FileCode, Settings, Menu, Code } from 'lucide-react';
 import { downloadProjectFile, loadProjectFile, loadProjectIntoStores } from '@/utils/projectSerializer';
 import { generateExportHTML, downloadFile } from '@/utils/htmlExporter';
 import { SettingsDialog } from './SettingsDialog';
+import { CssEditorDialog } from './CssEditorDialog';
 
 export const Header = observer(() => {
     const stores = useStores();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+    const [showCssEditorDialog, setShowCssEditorDialog] = useState(false);
 
     const handleExportProject = () => {
         try {
@@ -77,6 +79,7 @@ export const Header = observer(() => {
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
             const html = generateExportHTML(stores.layerStore.layers, {
                 resolution: stores.canvasStore.resolution,
+                customResolution: stores.canvasStore.resolution === 'custom' ? stores.canvasStore.customResolution : undefined,
                 backgroundColor: stores.canvasStore.backgroundColor,
                 parallaxEnabled: stores.effectsStore.parallaxEnabled,
                 includeGeneratorLink: stores.settingsStore.getSetting('include-generator-link'),
@@ -136,18 +139,34 @@ export const Header = observer(() => {
                         />
                     </div>
 
-                    {/* Settings Button */}
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowSettingsDialog(true)}
-                        className="gap-2"
-                    >
-                        <Settings className="h-4 w-4" />
-                        <span className="hidden sm:inline">Settings</span>
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        {/* CSS Editor Button */}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowCssEditorDialog(true)}
+                            className="gap-2"
+                        >
+                            <Code className="h-4 w-4" />
+                            <span className="hidden sm:inline">CSS</span>
+                        </Button>
+
+                        {/* Settings Button */}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowSettingsDialog(true)}
+                            className="gap-2"
+                        >
+                            <Settings className="h-4 w-4" />
+                            <span className="hidden sm:inline">Settings</span>
+                        </Button>
+                    </div>
                 </div>
             </div>
+
+            {/* CSS Editor Dialog */}
+            <CssEditorDialog open={showCssEditorDialog} onClose={() => setShowCssEditorDialog(false)} />
 
             {/* Settings Dialog */}
             <SettingsDialog open={showSettingsDialog} onClose={() => setShowSettingsDialog(false)} />

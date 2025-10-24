@@ -1,6 +1,6 @@
-import { Layer, ExportConfig, ResolutionStyles, AsciiLayer, ImageLayer } from '@/types';
+import { Layer, ExportConfig, ResolutionStyles, AsciiLayer, ImageLayer, CustomResolution } from '@/types';
 
-export function getResolutionStyles(resolution: string): ResolutionStyles {
+export function getResolutionStyles(resolution: string, customResolution?: CustomResolution): ResolutionStyles {
     let containerStyles = '';
     let bodyStyles = '';
 
@@ -43,6 +43,30 @@ export function getResolutionStyles(resolution: string): ResolutionStyles {
             align-items: center;
             justify-content: center;
             background-color: #f0f0f0;`;
+            break;
+        case 'custom':
+            if (customResolution) {
+                containerStyles = `
+            width: ${customResolution.width}px;
+            height: ${customResolution.height}px;
+            max-width: 90vw;
+            max-height: 90vh;
+            border: 2px solid #000000;`;
+                bodyStyles = `
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f0f0;`;
+            } else {
+                // Fallback to responsive if no custom resolution provided
+                containerStyles = `
+            width: 100%;
+            height: 100%;`;
+                bodyStyles = `
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;`;
+            }
             break;
         case 'responsive':
         default:
@@ -161,7 +185,7 @@ export function generateExportHTML(
 
     if (visibleLayers.length === 0) return '';
 
-    const { containerStyles, bodyStyles } = getResolutionStyles(config.resolution);
+    const { containerStyles, bodyStyles } = getResolutionStyles(config.resolution, config.customResolution);
     const bgColor = config.backgroundColor || '#ffffff';
 
     // Generate layers HTML

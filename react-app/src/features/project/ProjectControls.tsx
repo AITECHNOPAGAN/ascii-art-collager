@@ -31,25 +31,8 @@ export const ProjectControls = observer(() => {
                 </div>
 
                 <p className="text-xs text-muted-foreground text-center pt-2">
-                    Your project auto-saves every minute
+                    your project auto-saves every minute
                 </p>
-                <div className="space-y-2">
-                    <Label>Resolution</Label>
-                    <Select
-                        value={canvasStore.resolution}
-                        onValueChange={(value: string) => canvasStore.setResolution(value as Resolution)}
-                    >
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="responsive">Responsive</SelectItem>
-                            <SelectItem value="square">Square</SelectItem>
-                            <SelectItem value="landscape">Landscape</SelectItem>
-                            <SelectItem value="portrait">Portrait</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
             </CardContent>
         </Card>
     );

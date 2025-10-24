@@ -1,9 +1,10 @@
 import { makeAutoObservable } from 'mobx';
-import { Resolution } from '@/types';
+import { Resolution, CustomResolution } from '@/types';
 import { getResolutionStyles } from '@/utils/htmlExporter';
 
 export class CanvasStore {
     resolution: Resolution = 'responsive';
+    customResolution: CustomResolution = { width: 1920, height: 1080 };
     backgroundColor: string = '#ffffff';
 
     constructor() {
@@ -12,6 +13,10 @@ export class CanvasStore {
 
     setResolution = (resolution: Resolution) => {
         this.resolution = resolution;
+    };
+
+    setCustomResolution = (dimensions: CustomResolution) => {
+        this.customResolution = dimensions;
     };
 
     setBackgroundColor = (color: string) => {
@@ -48,6 +53,15 @@ export class CanvasStore {
                     border: '2px solid #000000',
                     margin: 'auto',
                 };
+            case 'custom':
+                return {
+                    width: `${this.customResolution.width}px`,
+                    height: `${this.customResolution.height}px`,
+                    maxWidth: 'calc(100vw - 400px)',
+                    maxHeight: 'calc(100vh - 200px)',
+                    border: '2px solid #000000',
+                    margin: 'auto',
+                };
             case 'responsive':
             default:
                 return {
@@ -58,7 +72,7 @@ export class CanvasStore {
     };
 
     get resolutionStyles() {
-        return getResolutionStyles(this.resolution);
+        return getResolutionStyles(this.resolution, this.customResolution);
     }
 }
 

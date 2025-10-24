@@ -2,11 +2,9 @@ import { useEffect, useState } from 'react';
 import { StoreProvider, RootStore } from './stores';
 import { LayerPanel, LayerControls } from './features/layers';
 import { CanvasContainer } from './features/canvas';
-import { EffectsPanel } from './features/effects';
 import { ProjectControls } from './features/project';
 import { EditingFooter } from './features/editing';
 import { Header } from './features/header';
-import { CustomStylesPanel } from './features/styles';
 import { autoSaveProject, loadAutoSavedProject, loadProjectIntoStores } from './utils/projectSerializer';
 
 const rootStore = new RootStore();
@@ -68,16 +66,14 @@ function App() {
                 <Header />
 
                 {/* Left Sidebar - Controls */}
-                <div className="w-80 bg-card border-r overflow-y-auto p-4 space-y-4 mt-[57px]">
-                    <ProjectControls />
+                <div className="w-80 bg-card border-r flex flex-col mt-[57px] pb-20">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                        <ProjectControls />
 
-                    <LayerPanel />
+                        <LayerPanel />
 
-                    <LayerControls />
-
-                    <CustomStylesPanel />
-
-                    <EffectsPanel />
+                        <LayerControls />
+                    </div>
                 </div>
 
                 {/* Main Canvas Area */}

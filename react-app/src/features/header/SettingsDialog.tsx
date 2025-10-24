@@ -1,6 +1,7 @@
 import { observer } from 'mobx-react-lite';
 import { useState, useMemo } from 'react';
-import { useSettingsStore } from '@/stores';
+import { useSettingsStore, useEffectsStore, useCanvasStore } from '@/stores';
+import { Resolution } from '@/types';
 import {
     Dialog,
     DialogContent,
@@ -13,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, RotateCcw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -24,7 +26,10 @@ interface SettingsDialogProps {
 
 export const SettingsDialog = observer(({ open, onClose }: SettingsDialogProps) => {
     const settingsStore = useSettingsStore();
+    const effectsStore = useEffectsStore();
+    const canvasStore = useCanvasStore();
     const [searchQuery, setSearchQuery] = useState('');
+    const [activeTab, setActiveTab] = useState('preferences');
 
     // Fuzzy search implementation
     const filteredSettings = useMemo(() => {
@@ -35,7 +40,7 @@ export const SettingsDialog = observer(({ open, onClose }: SettingsDialogProps) 
         const query = searchQuery.toLowerCase();
         return settingsStore.settings.filter((setting) => {
             const searchText = `${setting.name} ${setting.description} ${setting.category}`.toLowerCase();
-            
+
             // Simple fuzzy matching: check if all characters in query appear in order
             let queryIndex = 0;
             for (let i = 0; i < searchText.length && queryIndex < query.length; i++) {
@@ -73,133 +78,259 @@ export const SettingsDialog = observer(({ open, onClose }: SettingsDialogProps) 
                 <DialogHeader>
                     <DialogTitle>Settings</DialogTitle>
                     <DialogDescription>
-                        Customize your ASCII Art Generator experience. Use the search bar to quickly find settings.
+                        Customize your ASCII Art Generator experience.
                     </DialogDescription>
                 </DialogHeader>
 
-                {/* Search Bar */}
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        type="text"
-                        placeholder="Search settings... (fuzzy search enabled)"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10"
-                    />
-                </div>
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="preferences">Preferences</TabsTrigger>
+                        <TabsTrigger value="project">Project Settings</TabsTrigger>
+                    </TabsList>
 
-                {/* Settings List */}
-                <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-                    {filteredSettings.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                            <p>No settings found matching "{searchQuery}"</p>
-                            <p className="text-sm mt-2">Try a different search term</p>
+                    {/* Preferences Tab */}
+                    <TabsContent value="preferences" className="flex-1 flex flex-col overflow-hidden space-y-4">
+                        {/* Search Bar */}
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="text"
+                                placeholder="Search settings... (fuzzy search enabled)"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-10"
+                            />
                         </div>
-                    ) : (
-                        Object.entries(categorizedFilteredSettings).map(([category, settings]) => (
-                            <div key={category} className="space-y-3">
+
+                        {/* Settings List */}
+                        <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                            {filteredSettings.length === 0 ? (
+                                <div className="text-center py-8 text-muted-foreground">
+                                    <p>No settings found matching "{searchQuery}"</p>
+                                    <p className="text-sm mt-2">Try a different search term</p>
+                                </div>
+                            ) : (
+                                Object.entries(categorizedFilteredSettings).map(([category, settings]) => (
+                                    <div key={category} className="space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="outline">{category}</Badge>
+                                            <Separator className="flex-1" />
+                                        </div>
+
+                                        {settings.map((setting) => (
+                                            <div
+                                                key={setting.id}
+                                                className="flex items-start justify-between gap-4 p-3 border bg-card hover:bg-accent/50 transition-colors"
+                                            >
+                                                <div className="flex-1 min-w-0">
+                                                    <Label htmlFor={setting.id} className="font-medium cursor-pointer">
+                                                        {setting.name}
+                                                    </Label>
+                                                    <p className="text-sm text-muted-foreground mt-1">
+                                                        {setting.description}
+                                                    </p>
+                                                </div>
+
+                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                    {setting.type === 'boolean' && (
+                                                        <Switch
+                                                            id={setting.id}
+                                                            checked={setting.value}
+                                                            onCheckedChange={(checked) =>
+                                                                settingsStore.updateSetting(setting.id, checked)
+                                                            }
+                                                        />
+                                                    )}
+
+                                                    {setting.type === 'number' && (
+                                                        <Input
+                                                            id={setting.id}
+                                                            type="number"
+                                                            value={setting.value}
+                                                            onChange={(e) =>
+                                                                settingsStore.updateSetting(
+                                                                    setting.id,
+                                                                    parseFloat(e.target.value)
+                                                                )
+                                                            }
+                                                            className="w-20"
+                                                        />
+                                                    )}
+
+                                                    {setting.type === 'string' && (
+                                                        <Input
+                                                            id={setting.id}
+                                                            type="text"
+                                                            value={setting.value}
+                                                            onChange={(e) =>
+                                                                settingsStore.updateSetting(setting.id, e.target.value)
+                                                            }
+                                                            className="w-40"
+                                                        />
+                                                    )}
+
+                                                    {setting.type === 'select' && setting.options && (
+                                                        <Select
+                                                            value={setting.value}
+                                                            onValueChange={(value) =>
+                                                                settingsStore.updateSetting(setting.id, value)
+                                                            }
+                                                        >
+                                                            <SelectTrigger className="w-40">
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {setting.options.map((option) => (
+                                                                    <SelectItem key={option.value} value={option.value}>
+                                                                        {option.label}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    )}
+
+                                                    {setting.value !== setting.defaultValue && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => settingsStore.resetSetting(setting.id)}
+                                                            title="Reset to default"
+                                                        >
+                                                            <RotateCcw className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {/* Footer Actions */}
+                        <div className="flex items-center justify-between pt-4 border-t">
+                            <Button variant="outline" onClick={handleResetAll}>
+                                <RotateCcw className="mr-2 h-4 w-4" />
+                                Reset All
+                            </Button>
+                        </div>
+                    </TabsContent>
+
+                    {/* Project Settings Tab */}
+                    <TabsContent value="project" className="flex-1 flex flex-col overflow-hidden space-y-4">
+                        <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                            <div className="space-y-3">
                                 <div className="flex items-center gap-2">
-                                    <Badge variant="outline">{category}</Badge>
+                                    <Badge variant="outline">Canvas</Badge>
                                     <Separator className="flex-1" />
                                 </div>
 
-                                {settings.map((setting) => (
-                                    <div
-                                        key={setting.id}
-                                        className="flex items-start justify-between gap-4 p-3 border bg-card hover:bg-accent/50 transition-colors"
-                                    >
-                                        <div className="flex-1 min-w-0">
-                                            <Label htmlFor={setting.id} className="font-medium cursor-pointer">
-                                                {setting.name}
+                                <div className="flex items-start justify-between gap-4 p-3 border bg-card hover:bg-accent/50 transition-colors">
+                                    <div className="flex-1 min-w-0">
+                                        <Label htmlFor="resolution-select" className="font-medium cursor-pointer">
+                                            Canvas Resolution
+                                        </Label>
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                            Set the canvas size and aspect ratio
+                                        </p>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                        <Select
+                                            value={canvasStore.resolution}
+                                            onValueChange={(value: string) => canvasStore.setResolution(value as Resolution)}
+                                        >
+                                            <SelectTrigger id="resolution-select" className="w-40">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="responsive">Responsive</SelectItem>
+                                                <SelectItem value="square">Square</SelectItem>
+                                                <SelectItem value="landscape">Landscape</SelectItem>
+                                                <SelectItem value="portrait">Portrait</SelectItem>
+                                                <SelectItem value="custom">Custom</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+
+                                {canvasStore.resolution === 'custom' && (
+                                    <div className="flex items-start gap-4 p-3 border bg-card">
+                                        <div className="flex-1 space-y-2">
+                                            <Label htmlFor="custom-width" className="font-medium">
+                                                Width (px)
                                             </Label>
-                                            <p className="text-sm text-muted-foreground mt-1">
-                                                {setting.description}
-                                            </p>
+                                            <Input
+                                                id="custom-width"
+                                                type="number"
+                                                min="100"
+                                                max="7680"
+                                                value={canvasStore.customResolution.width}
+                                                onChange={(e) =>
+                                                    canvasStore.setCustomResolution({
+                                                        ...canvasStore.customResolution,
+                                                        width: parseInt(e.target.value) || 1920,
+                                                    })
+                                                }
+                                            />
                                         </div>
-
-                                        <div className="flex items-center gap-2 flex-shrink-0">
-                                            {setting.type === 'boolean' && (
-                                                <Switch
-                                                    id={setting.id}
-                                                    checked={setting.value}
-                                                    onCheckedChange={(checked) =>
-                                                        settingsStore.updateSetting(setting.id, checked)
-                                                    }
-                                                />
-                                            )}
-
-                                            {setting.type === 'number' && (
-                                                <Input
-                                                    id={setting.id}
-                                                    type="number"
-                                                    value={setting.value}
-                                                    onChange={(e) =>
-                                                        settingsStore.updateSetting(
-                                                            setting.id,
-                                                            parseFloat(e.target.value)
-                                                        )
-                                                    }
-                                                    className="w-20"
-                                                />
-                                            )}
-
-                                            {setting.type === 'string' && (
-                                                <Input
-                                                    id={setting.id}
-                                                    type="text"
-                                                    value={setting.value}
-                                                    onChange={(e) =>
-                                                        settingsStore.updateSetting(setting.id, e.target.value)
-                                                    }
-                                                    className="w-40"
-                                                />
-                                            )}
-
-                                            {setting.type === 'select' && setting.options && (
-                                                <Select
-                                                    value={setting.value}
-                                                    onValueChange={(value) =>
-                                                        settingsStore.updateSetting(setting.id, value)
-                                                    }
-                                                >
-                                                    <SelectTrigger className="w-40">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {setting.options.map((option) => (
-                                                            <SelectItem key={option.value} value={option.value}>
-                                                                {option.label}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            )}
-
-                                            {setting.value !== setting.defaultValue && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => settingsStore.resetSetting(setting.id)}
-                                                    title="Reset to default"
-                                                >
-                                                    <RotateCcw className="h-4 w-4" />
-                                                </Button>
-                                            )}
+                                        <div className="flex-1 space-y-2">
+                                            <Label htmlFor="custom-height" className="font-medium">
+                                                Height (px)
+                                            </Label>
+                                            <Input
+                                                id="custom-height"
+                                                type="number"
+                                                min="100"
+                                                max="4320"
+                                                value={canvasStore.customResolution.height}
+                                                onChange={(e) =>
+                                                    canvasStore.setCustomResolution({
+                                                        ...canvasStore.customResolution,
+                                                        height: parseInt(e.target.value) || 1080,
+                                                    })
+                                                }
+                                            />
                                         </div>
                                     </div>
-                                ))}
+                                )}
                             </div>
-                        ))
-                    )}
-                </div>
 
-                {/* Footer Actions */}
-                <div className="flex items-center justify-between pt-4 border-t">
-                    <Button variant="outline" onClick={handleResetAll}>
-                        <RotateCcw className="mr-2 h-4 w-4" />
-                        Reset All Settings
-                    </Button>
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <Badge variant="outline">Effects</Badge>
+                                    <Separator className="flex-1" />
+                                </div>
+
+                                <div className="flex items-start justify-between gap-4 p-3 border bg-card hover:bg-accent/50 transition-colors">
+                                    <div className="flex-1 min-w-0">
+                                        <Label htmlFor="parallax-toggle" className="font-medium cursor-pointer">
+                                            Enable Parallax Effect
+                                        </Label>
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                            Add depth effect with mouse movement (saved per project)
+                                        </p>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                        <Switch
+                                            id="parallax-toggle"
+                                            checked={effectsStore.parallaxEnabled}
+                                            onCheckedChange={() => effectsStore.toggleParallax()}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="pt-4 border-t text-xs text-muted-foreground">
+                            <p>Project settings are saved with your project when you export or auto-save.</p>
+                        </div>
+                    </TabsContent>
+                </Tabs>
+
+                {/* Dialog Footer */}
+                <div className="flex items-center justify-end gap-2 pt-2">
                     <Button onClick={onClose}>Close</Button>
                 </div>
             </DialogContent>

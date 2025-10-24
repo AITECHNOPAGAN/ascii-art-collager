@@ -17,5 +17,16 @@ export class EffectsStore {
         this.mouseX = x;
         this.mouseY = y;
     };
+
+    // For project serialization
+    toJSON = () => {
+        return {
+            parallaxEnabled: this.parallaxEnabled
+        };
+    };
+
+    loadFromJSON = (data: { parallaxEnabled: boolean }) => {
+        this.parallaxEnabled = data.parallaxEnabled;
+    };
 }
 
