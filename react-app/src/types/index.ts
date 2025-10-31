@@ -40,6 +40,7 @@ interface BaseLayer {
     zIndex: number;
     visibility: boolean;
     parallaxStrength: number;
+    enablePointerEvents?: boolean; // Optional: whether layer captures pointer events (default false for ASCII/Image, true for HTML)
 }
 
 // ASCII Layer (character-based lattice)

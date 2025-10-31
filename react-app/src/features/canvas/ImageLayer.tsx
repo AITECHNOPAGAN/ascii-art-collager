@@ -49,7 +49,7 @@ export const ImageLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 }, di
         zIndex,
         transformOrigin,
         transform,
-        pointerEvents: disablePointerEvents ? 'none' : 'none', // Image layers don't need pointer events by default
+        pointerEvents: disablePointerEvents ? 'none' : (layer.enablePointerEvents ? 'auto' : 'none'),
         ...(position === 'top-left' && { top: 0, left: 0 }),
         ...(position === 'top-right' && { top: 0, right: 0 }),
         ...(position === 'bottom-left' && { bottom: 0, left: 0 }),

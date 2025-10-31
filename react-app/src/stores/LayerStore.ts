@@ -494,6 +494,10 @@ export class LayerStore {
         this.updateEditingState({ parallaxStrength });
     };
 
+    setEnablePointerEvents = (enablePointerEvents: boolean) => {
+        this.updateEditingState({ enablePointerEvents });
+    };
+
     setTintColor = (tintColor: string | undefined) => {
         if (!this.editingState) return;
 

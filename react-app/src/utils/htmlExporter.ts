@@ -149,7 +149,7 @@ function exportAsciiLayer(layer: AsciiLayer): string {
     }
 
     const positionClass = `position-${layer.position}`;
-    return `        <div class="ascii-layer ${positionClass}" data-layer-id="${layer.id}" data-parallax="${layer.parallaxStrength}" data-offset-x="${layer.offsetX}" data-offset-y="${layer.offsetY}" data-scale="${layer.scale}" style="z-index: ${layer.zIndex}; font-size: ${fontSize}px;">
+    return `        <div class="ascii-layer ${positionClass}" data-layer-id="${layer.id}" data-parallax="${layer.parallaxStrength}" data-offset-x="${layer.offsetX}" data-offset-y="${layer.offsetY}" data-scale="${layer.scale}" style="z-index: ${layer.zIndex}; font-size: ${fontSize}px; pointer-events: ${layer.enablePointerEvents ? 'auto' : 'none'};">
 ${content}
         </div>\n`;
 }
@@ -163,7 +163,7 @@ function exportImageLayer(layer: ImageLayer): string {
         ? `<div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: ${layer.tintColor}; mix-blend-mode: multiply; pointer-events: none;"></div>`
         : '';
 
-    return `        <div class="image-layer ${positionClass}" data-layer-id="${layer.id}" data-parallax="${layer.parallaxStrength}" data-offset-x="${layer.offsetX}" data-offset-y="${layer.offsetY}" data-scale="${layer.scale}" style="z-index: ${layer.zIndex};">
+    return `        <div class="image-layer ${positionClass}" data-layer-id="${layer.id}" data-parallax="${layer.parallaxStrength}" data-offset-x="${layer.offsetX}" data-offset-y="${layer.offsetY}" data-scale="${layer.scale}" style="z-index: ${layer.zIndex}; pointer-events: ${layer.enablePointerEvents ? 'auto' : 'none'};">
             <img src="${displayImage}" style="max-width: 100%; max-height: 100%; display: block;">
             ${tintOverlay}
         </div>\n`;
@@ -204,7 +204,7 @@ function exportHtmlLayer(layer: HtmlLayer): string {
     // Use data URI with base64 encoding for better compatibility
     const base64Html = btoa(unescape(encodeURIComponent(layer.htmlContent)));
 
-    return `        <div class="html-layer ${positionClass}" data-layer-id="${layer.id}" data-parallax="${layer.parallaxStrength}" data-offset-x="${layer.offsetX}" data-offset-y="${layer.offsetY}" data-scale="${layer.scale}" style="z-index: ${layer.zIndex}; width: ${width}; height: ${height}; overflow-x: ${overflowX}; overflow-y: ${overflowY};">
+    return `        <div class="html-layer ${positionClass}" data-layer-id="${layer.id}" data-parallax="${layer.parallaxStrength}" data-offset-x="${layer.offsetX}" data-offset-y="${layer.offsetY}" data-scale="${layer.scale}" style="z-index: ${layer.zIndex}; width: ${width}; height: ${height}; overflow-x: ${overflowX}; overflow-y: ${overflowY}; pointer-events: auto;">
             <iframe style="width: 100%; height: 100%; border: none; display: block;" src="data:text/html;base64,${base64Html}" sandbox="allow-scripts allow-same-origin"></iframe>
         </div>\n`;
 }

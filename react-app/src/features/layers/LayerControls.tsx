@@ -9,6 +9,7 @@ import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { HtmlEditorDialog } from '@/features/editing';
 import { useState } from 'react';
 
@@ -177,6 +178,23 @@ export const LayerControls = observer(() => {
                         step={0.1}
                     />
                 </div>
+
+                {/* Pointer Events Toggle - Only for ASCII and Image layers */}
+                {(editingState.type === 'ascii' || editingState.type === 'image') && (
+                    <div className="flex items-center justify-between space-x-2">
+                        <div className="space-y-0.5">
+                            <Label htmlFor="pointer-events">Capture Pointer Events</Label>
+                            <p className="text-xs text-muted-foreground">
+                                Enable if layer needs to be clickable/interactive
+                            </p>
+                        </div>
+                        <Switch
+                            id="pointer-events"
+                            checked={editingState.enablePointerEvents ?? false}
+                            onCheckedChange={(checked: boolean) => layerStore.setEnablePointerEvents(checked)}
+                        />
+                    </div>
+                )}
 
                 {/* Save Button - Only show if auto-save is not set to always-save */}
                 {showSaveButton && (
