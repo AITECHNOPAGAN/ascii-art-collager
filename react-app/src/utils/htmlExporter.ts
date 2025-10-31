@@ -302,10 +302,31 @@ export function generateExportHTML(
             left: 0;
         }
         
+        .ascii-layer.position-top-center,
+        .image-layer.position-top-center,
+        .html-layer.position-top-center {
+            top: 0;
+            left: 50%;
+        }
+        
         .ascii-layer.position-top-right,
         .image-layer.position-top-right,
         .html-layer.position-top-right {
             top: 0;
+            right: 0;
+        }
+        
+        .ascii-layer.position-center-left,
+        .image-layer.position-center-left,
+        .html-layer.position-center-left {
+            top: 50%;
+            left: 0;
+        }
+        
+        .ascii-layer.position-center-right,
+        .image-layer.position-center-right,
+        .html-layer.position-center-right {
+            top: 50%;
             right: 0;
         }
         
@@ -314,6 +335,13 @@ export function generateExportHTML(
         .html-layer.position-bottom-left {
             bottom: 0;
             left: 0;
+        }
+        
+        .ascii-layer.position-bottom-center,
+        .image-layer.position-bottom-center,
+        .html-layer.position-bottom-center {
+            bottom: 0;
+            left: 50%;
         }
         
         .ascii-layer.position-bottom-right,
@@ -421,11 +449,23 @@ ${layersHTML}
                     case 'top-left':
                         transformOrigin = 'top left';
                         break;
+                    case 'top-center':
+                        transformOrigin = 'top center';
+                        break;
                     case 'top-right':
                         transformOrigin = 'top right';
                         break;
+                    case 'center-left':
+                        transformOrigin = 'center left';
+                        break;
+                    case 'center-right':
+                        transformOrigin = 'center right';
+                        break;
                     case 'bottom-left':
                         transformOrigin = 'bottom left';
+                        break;
+                    case 'bottom-center':
+                        transformOrigin = 'bottom center';
                         break;
                     case 'bottom-right':
                         transformOrigin = 'bottom right';
@@ -449,6 +489,14 @@ ${layersHTML}
                 // Apply transform based on position
                 if (position === 'center') {
                     element.style.transform = \`translate(calc(-50% + \${translateX}px), calc(-50% + \${translateY}px)) scale(\${scale})\`;
+                } else if (position === 'top-center') {
+                    element.style.transform = \`translate(calc(-50% + \${translateX}px), \${translateY}px) scale(\${scale})\`;
+                } else if (position === 'bottom-center') {
+                    element.style.transform = \`translate(calc(-50% + \${translateX}px), \${translateY}px) scale(\${scale})\`;
+                } else if (position === 'center-left') {
+                    element.style.transform = \`translate(\${translateX}px, calc(-50% + \${translateY}px)) scale(\${scale})\`;
+                } else if (position === 'center-right') {
+                    element.style.transform = \`translate(\${translateX}px, calc(-50% + \${translateY}px)) scale(\${scale})\`;
                 } else {
                     element.style.transform = \`translate(\${translateX}px, \${translateY}px) scale(\${scale})\`;
                 }
