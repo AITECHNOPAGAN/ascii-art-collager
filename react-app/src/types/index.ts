@@ -3,7 +3,7 @@ export type LayerType = 'ascii' | 'image' | 'html';
 
 export type OverflowType = 'visible' | 'scroll' | 'scroll-x' | 'scroll-y';
 
-export type Position = 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+export type Position = 'center' | 'top-left' | 'top-center' | 'top-right' | 'center-left' | 'center-right' | 'bottom-left' | 'bottom-center' | 'bottom-right';
 
 export type Resolution = 'responsive' | 'square' | 'landscape' | 'portrait' | 'custom';
 

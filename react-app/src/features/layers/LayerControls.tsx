@@ -119,7 +119,7 @@ export const LayerControls = observer(() => {
                         <div className="space-y-2">
                             <Label>Dimensions</Label>
                             <div className="text-sm text-muted-foreground">
-                                Width: {editingState.width === 'auto' ? 'auto' : `${editingState.width}px`}, 
+                                Width: {editingState.width === 'auto' ? 'auto' : `${editingState.width}px`},
                                 Height: {editingState.height === 'auto' ? 'auto' : `${editingState.height}px`}
                             </div>
                         </div>
@@ -160,8 +160,12 @@ export const LayerControls = observer(() => {
                         <SelectContent>
                             <SelectItem value="center">Center</SelectItem>
                             <SelectItem value="top-left">Top Left</SelectItem>
+                            <SelectItem value="top-center">Top Center</SelectItem>
                             <SelectItem value="top-right">Top Right</SelectItem>
+                            <SelectItem value="center-left">Center Left</SelectItem>
+                            <SelectItem value="center-right">Center Right</SelectItem>
                             <SelectItem value="bottom-left">Bottom Left</SelectItem>
+                            <SelectItem value="bottom-center">Bottom Center</SelectItem>
                             <SelectItem value="bottom-right">Bottom Right</SelectItem>
                         </SelectContent>
                     </Select>
