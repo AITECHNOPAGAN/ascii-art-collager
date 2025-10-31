@@ -1,5 +1,5 @@
 import { makeAutoObservable } from 'mobx';
-import { Layer, AsciiLayer, ImageLayer, Position, CharacterCell } from '@/types';
+import { Layer, AsciiLayer, ImageLayer, HtmlLayer, Position, CharacterCell, OverflowType } from '@/types';
 import { convertImageToAscii, parseColoredAscii, loadImageFromFile } from '@/utils/imageToAscii';
 
 export class LayerStore {
@@ -64,6 +64,35 @@ export class LayerStore {
             name: `Image Layer ${this.nextLayerId - 1}`,
             type: 'image',
             imageData: '',
+            position: 'center',
+            offsetX: 0,
+            offsetY: 0,
+            scale: 1,
+            fontSize: 12,
+            zIndex: this.layers.length + 2,
+            visibility: true,
+            parallaxStrength: 0.3 + (this.layers.length * 0.1)
+        };
+
+        this.layers.push(layer);
+        this.activeLayerId = layer.id;
+        this.editingState = { ...layer };
+        this.hasUnsavedChanges = false;
+    };
+
+    createNewHtmlLayer = () => {
+        if (this.hasUnsavedChanges && !this.promptSaveChanges()) {
+            return;
+        }
+
+        const layer: HtmlLayer = {
+            id: this.nextLayerId++,
+            name: `HTML Layer ${this.nextLayerId - 1}`,
+            type: 'html',
+            htmlContent: '<div style="color: white; font-size: 24px; padding: 20px;">HTML Content</div>',
+            width: 'auto', // 'auto' will stretch to 100% of canvas
+            height: 'auto', // 'auto' will stretch to 100% of canvas
+            overflow: 'scroll-y', // Enable vertical scrolling by default
             position: 'center',
             offsetX: 0,
             offsetY: 0,
@@ -208,6 +237,38 @@ export class LayerStore {
         }
     };
 
+    // HTML layer methods
+    setHtmlContent = (layerId: number, htmlContent: string) => {
+        const layer = this.layers.find(l => l.id === layerId);
+        if (!layer || layer.type !== 'html') return;
+
+        if (this.editingState?.id === layerId && this.editingState.type === 'html') {
+            this.editingState.htmlContent = htmlContent;
+            this.hasUnsavedChanges = true;
+        }
+    };
+
+    setHtmlDimensions = (layerId: number, width: number | 'auto', height: number | 'auto') => {
+        const layer = this.layers.find(l => l.id === layerId);
+        if (!layer || layer.type !== 'html') return;
+
+        if (this.editingState?.id === layerId && this.editingState.type === 'html') {
+            this.editingState.width = width;
+            this.editingState.height = height;
+            this.hasUnsavedChanges = true;
+        }
+    };
+
+    setHtmlOverflow = (layerId: number, overflow: OverflowType) => {
+        const layer = this.layers.find(l => l.id === layerId);
+        if (!layer || layer.type !== 'html') return;
+
+        if (this.editingState?.id === layerId && this.editingState.type === 'html') {
+            this.editingState.overflow = overflow;
+            this.hasUnsavedChanges = true;
+        }
+    };
+
     // Layer management
     setActiveLayer = (layerId: number) => {
         if (this.hasUnsavedChanges && this.activeLayerId !== layerId) {
@@ -240,6 +301,8 @@ export class LayerStore {
                         cells: layer.lattice.cells.map(row => row.map(cell => ({ ...cell })))
                     }
                 };
+            } else if (layer.type === 'html') {
+                this.editingState = { ...layer };
             } else {
                 this.editingState = { ...layer };
             }
@@ -477,9 +540,12 @@ export class LayerStore {
         return this.layers.length > 0 && this.layers.some(l => {
             if (l.type === 'ascii') {
                 return l.lattice.cells.length > 0;
-            } else {
+            } else if (l.type === 'image') {
                 return l.imageData !== '';
+            } else if (l.type === 'html') {
+                return l.htmlContent !== '';
             }
+            return false;
         });
     }
 

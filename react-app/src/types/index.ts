@@ -1,5 +1,7 @@
 // Layer Types
-export type LayerType = 'ascii' | 'image';
+export type LayerType = 'ascii' | 'image' | 'html';
+
+export type OverflowType = 'visible' | 'scroll' | 'scroll-x' | 'scroll-y';
 
 export type Position = 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
@@ -57,8 +59,17 @@ export interface ImageLayer extends BaseLayer {
     tintColor?: string; // Optional tint color to apply to the image
 }
 
+// HTML Layer (raw HTML content)
+export interface HtmlLayer extends BaseLayer {
+    type: 'html';
+    htmlContent: string; // raw HTML content
+    width: number | 'auto'; // container width in px or auto
+    height: number | 'auto'; // container height in px or auto
+    overflow: OverflowType; // overflow behavior
+}
+
 // Discriminated union for layers
-export type Layer = AsciiLayer | ImageLayer;
+export type Layer = AsciiLayer | ImageLayer | HtmlLayer;
 
 // Editing Tools
 export type EditingTool = 'select' | 'move' | 'scale' | 'erase' | 'paint-color' | 'paint-alpha' | 'color-picker';

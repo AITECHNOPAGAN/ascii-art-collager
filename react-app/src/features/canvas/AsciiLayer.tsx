@@ -89,7 +89,7 @@ export const AsciiLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 }, di
         whiteSpace: 'pre',
         letterSpacing: 0,
         wordSpacing: 0,
-        pointerEvents: disablePointerEvents ? 'none' : 'auto',
+        pointerEvents: disablePointerEvents ? 'none' : 'none', // ASCII layers don't need pointer events by default
         ...(position === 'top-left' && { top: 0, left: 0 }),
         ...(position === 'top-right' && { top: 0, right: 0 }),
         ...(position === 'bottom-left' && { bottom: 0, left: 0 }),

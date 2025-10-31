@@ -4,7 +4,7 @@ import { LayerItem } from './LayerItem';
 import { UnsavedChangesDialog } from './UnsavedChangesDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Image as ImageIcon } from 'lucide-react';
+import { Plus, Image as ImageIcon, Code } from 'lucide-react';
 import {
     DndContext,
     closestCenter,
@@ -59,6 +59,10 @@ export const LayerPanel = observer(() => {
                         <Button onClick={() => layerStore.createNewImageLayer()} className="flex-1">
                             <ImageIcon className="mr-2 h-4 w-4" />
                             Image
+                        </Button>
+                        <Button onClick={() => layerStore.createNewHtmlLayer()} className="flex-1">
+                            <Code className="mr-2 h-4 w-4" />
+                            HTML
                         </Button>
                     </div>
                 </CardHeader>

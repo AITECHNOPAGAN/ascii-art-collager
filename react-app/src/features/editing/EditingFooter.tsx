@@ -258,7 +258,7 @@ export const EditingFooter = observer(() => {
                     )}
 
                     {/* Full Image Tint */}
-                    {editingState && (
+                    {editingState && (editingState.type === 'ascii' || editingState.type === 'image') && (
                         <>
                             <Separator orientation="vertical" className="h-8 flex-shrink-0" />
                             <Popover>

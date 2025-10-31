@@ -41,6 +41,9 @@ export const LayerItem = observer(({ layerId }: LayerItemProps) => {
     if (displayData.type === 'image') {
         const displayImage = displayData.editedPixels || displayData.imageData;
         preview = displayImage ? '🖼️ Image Layer' : '(no image)';
+    } else if (displayData.type === 'html') {
+        // HTML layer
+        preview = displayData.htmlContent ? '💻 HTML Layer' : '(no content)';
     } else {
         // ASCII layer
         const hasContent = displayData.lattice && displayData.lattice.cells.length > 0;

@@ -1,15 +1,11 @@
 import { observer } from 'mobx-react-lite';
-import { useCanvasStore, useStores } from '@/stores';
+import { useStores } from '@/stores';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Select, SelectItem, SelectContent, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Resolution } from '@/types';
 
 export const ProjectControls = observer(() => {
     const stores = useStores();
-
-    const canvasStore = useCanvasStore();
 
 
     return (

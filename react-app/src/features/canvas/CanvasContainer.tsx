@@ -2,6 +2,7 @@ import { observer } from 'mobx-react-lite';
 import { useLayerStore, useCanvasStore, useEffectsStore, useEditingStore } from '@/stores';
 import { AsciiLayer } from './AsciiLayer';
 import { ImageLayer } from './ImageLayer';
+import { HTMLLayer } from './HTMLLayer';
 import { EditableAsciiLayer } from './EditableAsciiLayer';
 import { EditableImageLayer } from './EditableImageLayer';
 import { useEffect, useRef } from 'react';
@@ -42,7 +43,7 @@ export const CanvasContainer = observer(() => {
         const updateParallax = () => {
             if (!containerRef.current) return;
 
-            const layers = containerRef.current.querySelectorAll('.ascii-layer, .image-layer');
+            const layers = containerRef.current.querySelectorAll('.ascii-layer, .image-layer, .html-layer');
             layers.forEach((layerElement) => {
                 const htmlElement = layerElement as HTMLElement;
                 const parallaxStrength = parseFloat(htmlElement.dataset.parallax || '0');
@@ -112,16 +113,21 @@ export const CanvasContainer = observer(() => {
                 if (isActive && isEditMode) {
                     if (layerData.type === 'image') {
                         return <EditableImageLayer key={layer.id} layer={layerData} parallaxOffset={parallaxOffset} />;
-                    } else {
+                    } else if (layerData.type === 'ascii') {
                         return <EditableAsciiLayer key={layer.id} layer={layerData} parallaxOffset={parallaxOffset} />;
+                    } else if (layerData.type === 'html') {
+                        // HTML layers don't have editable mode, render normally
+                        return <HTMLLayer key={layer.id} layer={layerData} parallaxOffset={parallaxOffset} disablePointerEvents={disablePointerEvents} />;
                     }
                 }
 
                 // Otherwise render regular layer (with pointer events disabled if needed)
                 if (layerData.type === 'image') {
                     return <ImageLayer key={layer.id} layer={layerData} parallaxOffset={parallaxOffset} disablePointerEvents={disablePointerEvents} />;
-                } else {
+                } else if (layerData.type === 'ascii') {
                     return <AsciiLayer key={layer.id} layer={layerData} parallaxOffset={parallaxOffset} disablePointerEvents={disablePointerEvents} />;
+                } else if (layerData.type === 'html') {
+                    return <HTMLLayer key={layer.id} layer={layerData} parallaxOffset={parallaxOffset} disablePointerEvents={disablePointerEvents} />;
                 }
             })}
         </div>

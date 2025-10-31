@@ -1,4 +1,4 @@
-import { Layer, ExportConfig, ResolutionStyles, AsciiLayer, ImageLayer, CustomResolution } from '@/types';
+import { Layer, ExportConfig, ResolutionStyles, AsciiLayer, ImageLayer, HtmlLayer, CustomResolution } from '@/types';
 
 export function getResolutionStyles(resolution: string, customResolution?: CustomResolution): ResolutionStyles {
     let containerStyles = '';
@@ -169,6 +169,46 @@ function exportImageLayer(layer: ImageLayer): string {
         </div>\n`;
 }
 
+function exportHtmlLayer(layer: HtmlLayer): string {
+    if (!layer.htmlContent) return '';
+
+    const positionClass = `position-${layer.position}`;
+
+    // Determine overflow styles
+    let overflowX = 'visible';
+    let overflowY = 'visible';
+
+    switch (layer.overflow) {
+        case 'scroll':
+            overflowX = 'auto';
+            overflowY = 'auto';
+            break;
+        case 'scroll-x':
+            overflowX = 'auto';
+            overflowY = 'visible';
+            break;
+        case 'scroll-y':
+            overflowX = 'visible';
+            overflowY = 'auto';
+            break;
+        case 'visible':
+        default:
+            overflowX = 'visible';
+            overflowY = 'visible';
+            break;
+    }
+
+    const width = layer.width === 'auto' ? '100%' : `${layer.width}px`;
+    const height = layer.height === 'auto' ? '100%' : `${layer.height}px`;
+
+    // Use data URI with base64 encoding for better compatibility
+    const base64Html = btoa(unescape(encodeURIComponent(layer.htmlContent)));
+
+    return `        <div class="html-layer ${positionClass}" data-layer-id="${layer.id}" data-parallax="${layer.parallaxStrength}" data-offset-x="${layer.offsetX}" data-offset-y="${layer.offsetY}" data-scale="${layer.scale}" style="z-index: ${layer.zIndex}; width: ${width}; height: ${height}; overflow-x: ${overflowX}; overflow-y: ${overflowY};">
+            <iframe style="width: 100%; height: 100%; border: none; display: block;" src="data:text/html;base64,${base64Html}" sandbox="allow-scripts allow-same-origin"></iframe>
+        </div>\n`;
+}
+
 export function generateExportHTML(
     layers: Layer[],
     config: ExportConfig
@@ -178,9 +218,12 @@ export function generateExportHTML(
         if (!l.visibility) return false;
         if (l.type === 'ascii') {
             return l.lattice && l.lattice.cells.length > 0;
-        } else {
+        } else if (l.type === 'image') {
             return l.imageData !== '';
+        } else if (l.type === 'html') {
+            return l.htmlContent !== '';
         }
+        return false;
     });
 
     if (visibleLayers.length === 0) return '';
@@ -193,8 +236,10 @@ export function generateExportHTML(
     visibleLayers.forEach(layer => {
         if (layer.type === 'ascii') {
             layersHTML += exportAsciiLayer(layer);
-        } else {
+        } else if (layer.type === 'image') {
             layersHTML += exportImageLayer(layer);
+        } else if (layer.type === 'html') {
+            layersHTML += exportHtmlLayer(layer);
         }
     });
 
@@ -245,32 +290,42 @@ export function generateExportHTML(
             display: block;
         }
         
+        .html-layer {
+            position: absolute;
+            transition: transform 0.05s ease-out;
+        }
+        
         .ascii-layer.position-top-left,
-        .image-layer.position-top-left {
+        .image-layer.position-top-left,
+        .html-layer.position-top-left {
             top: 0;
             left: 0;
         }
         
         .ascii-layer.position-top-right,
-        .image-layer.position-top-right {
+        .image-layer.position-top-right,
+        .html-layer.position-top-right {
             top: 0;
             right: 0;
         }
         
         .ascii-layer.position-bottom-left,
-        .image-layer.position-bottom-left {
+        .image-layer.position-bottom-left,
+        .html-layer.position-bottom-left {
             bottom: 0;
             left: 0;
         }
         
         .ascii-layer.position-bottom-right,
-        .image-layer.position-bottom-right {
+        .image-layer.position-bottom-right,
+        .html-layer.position-bottom-right {
             bottom: 0;
             right: 0;
         }
         
         .ascii-layer.position-center,
-        .image-layer.position-center {
+        .image-layer.position-center,
+        .html-layer.position-center {
             top: 50%;
             left: 50%;
         }${config.includeGeneratorLink ? `
@@ -336,7 +391,7 @@ ${layersHTML}
         let animationFrameId = null;
 
         // Get all layers and their properties
-        const layers = Array.from(document.querySelectorAll('.ascii-layer, .image-layer')).map(layerDiv => ({
+        const layers = Array.from(document.querySelectorAll('.ascii-layer, .image-layer, .html-layer')).map(layerDiv => ({
             element: layerDiv,
             parallaxStrength: parseFloat(layerDiv.dataset.parallax),
             offsetX: parseInt(layerDiv.dataset.offsetX),

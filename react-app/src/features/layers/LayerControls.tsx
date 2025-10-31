@@ -9,11 +9,14 @@ import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { HtmlEditorDialog } from '@/features/editing';
+import { useState } from 'react';
 
 export const LayerControls = observer(() => {
     const layerStore = useLayerStore();
     const settingsStore = useSettingsStore();
     const { editingState } = layerStore;
+    const [htmlEditorOpen, setHtmlEditorOpen] = useState(false);
 
     if (!editingState) return null;
 
@@ -48,8 +51,8 @@ export const LayerControls = observer(() => {
             <CardHeader>
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">Layer Settings</CardTitle>
-                    <Badge variant={editingState.type === 'ascii' ? 'default' : 'secondary'}>
-                        {editingState.type === 'ascii' ? 'ASCII' : 'Image'}
+                    <Badge variant={editingState.type === 'ascii' ? 'default' : editingState.type === 'html' ? 'outline' : 'secondary'}>
+                        {editingState.type === 'ascii' ? 'ASCII' : editingState.type === 'html' ? 'HTML' : 'Image'}
                     </Badge>
                 </div>
             </CardHeader>
@@ -109,6 +112,26 @@ export const LayerControls = observer(() => {
                             </>
                         )}
                     </>
+                ) : editingState.type === 'html' ? (
+                    <>
+                        {/* HTML Layer Controls */}
+                        <div className="space-y-2">
+                            <Label>Dimensions</Label>
+                            <div className="text-sm text-muted-foreground">
+                                Width: {editingState.width === 'auto' ? 'auto' : `${editingState.width}px`}, 
+                                Height: {editingState.height === 'auto' ? 'auto' : `${editingState.height}px`}
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Overflow</Label>
+                            <div className="text-sm text-muted-foreground capitalize">
+                                {editingState.overflow.replace('-', ' ')}
+                            </div>
+                        </div>
+                        <Button onClick={() => setHtmlEditorOpen(true)} className="w-full">
+                            Edit HTML
+                        </Button>
+                    </>
                 ) : (
                     <>
                         {/* Image Layer Controls - Only show upload if no image exists */}
@@ -162,6 +185,15 @@ export const LayerControls = observer(() => {
                     </Button>
                 )}
             </CardContent>
+
+            {/* HTML Editor Dialog */}
+            {editingState.type === 'html' && (
+                <HtmlEditorDialog
+                    layer={editingState}
+                    open={htmlEditorOpen}
+                    onClose={() => setHtmlEditorOpen(false)}
+                />
+            )}
         </Card>
     );
 });
