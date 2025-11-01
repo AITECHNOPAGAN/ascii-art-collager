@@ -138,7 +138,7 @@ export const HTMLLayer = observer(({ layer, parallaxOffset = { x: 0, y: 0 } }: H
                 ref={iframeRef}
                 style={iframeStyle}
                 title={`HTML Layer ${layer.id}`}
-                sandbox="allow-scripts allow-same-origin"
+                sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
             />
         </div>
     );
