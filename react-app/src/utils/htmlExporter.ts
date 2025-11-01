@@ -169,35 +169,6 @@ function exportImageLayer(layer: ImageLayer): string {
         </div>\n`;
 }
 
-// Helper function to safely encode HTML content to base64
-// Handles Unicode characters properly without using deprecated unescape()
-function encodeHtmlToBase64(html: string): string {
-    try {
-        // Modern approach: Use TextEncoder for proper UTF-8 encoding
-        const encoder = new TextEncoder();
-        const uint8Array = encoder.encode(html);
-        
-        // Convert Uint8Array to binary string
-        let binaryString = '';
-        for (let i = 0; i < uint8Array.length; i++) {
-            binaryString += String.fromCharCode(uint8Array[i]);
-        }
-        
-        // Encode to base64
-        return btoa(binaryString);
-    } catch (error) {
-        console.error('Failed to encode HTML to base64:', error);
-        // Fallback to legacy method if modern approach fails
-        try {
-            return btoa(unescape(encodeURIComponent(html)));
-        } catch (fallbackError) {
-            console.error('Fallback encoding also failed:', fallbackError);
-            // Return empty string if all encoding attempts fail
-            return '';
-        }
-    }
-}
-
 function exportHtmlLayer(layer: HtmlLayer): string {
     if (!layer.htmlContent) return '';
 
@@ -230,18 +201,18 @@ function exportHtmlLayer(layer: HtmlLayer): string {
     const width = layer.width === 'auto' ? '100%' : `${layer.width}px`;
     const height = layer.height === 'auto' ? '100%' : `${layer.height}px`;
 
-    // Safely encode HTML content to base64
-    // This preserves JavaScript code, Unicode characters, and special characters
-    const base64Html = encodeHtmlToBase64(layer.htmlContent);
-
-    // If encoding failed, return empty layer
-    if (!base64Html) {
-        console.warn(`Failed to encode HTML layer ${layer.id}, skipping export`);
-        return '';
-    }
+    // For exported HTML, we need to embed the content in a way that supports localStorage
+    // We'll use srcdoc which has better storage support than data: URLs
+    // Need to escape the HTML content for use in srcdoc attribute
+    const escapedHtml = layer.htmlContent
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 
     return `        <div class="html-layer ${positionClass}" data-layer-id="${layer.id}" data-parallax="${layer.parallaxStrength}" data-offset-x="${layer.offsetX}" data-offset-y="${layer.offsetY}" data-scale="${layer.scale}" style="z-index: ${layer.zIndex}; width: ${width}; height: ${height}; overflow-x: ${overflowX}; overflow-y: ${overflowY}; pointer-events: auto;">
-            <iframe style="width: 100%; height: 100%; border: none; display: block;" src="data:text/html;charset=utf-8;base64,${base64Html}" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"></iframe>
+            <iframe style="width: 100%; height: 100%; border: none; display: block;" srcdoc="${escapedHtml}" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"></iframe>
         </div>\n`;
 }
 
